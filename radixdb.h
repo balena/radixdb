@@ -29,9 +29,9 @@ int radixdb_lookup(const struct radixdb* tp,
                    const char *key, uint32_t klen,
                    const char **val, uint32_t *vlen);
 
-int radixdb_best_match(const struct radixdb* tp,
-                       const char *key, uint32_t klen,
-                       const char **val, uint32_t *vlen);
+int radixdb_longest_match(const struct radixdb* tp,
+                          const char *key, uint32_t klen,
+                          const char **val, uint32_t *vlen);
 
 void radixdb_dump(const struct radixdb* tp);
 
