@@ -28,14 +28,16 @@
 #define datastart(x, klen) ((x) + 20 + (klen))
 #define nodesize(klen, vlen) (4 + 8 + 8 + (klen) + (vlen))
 
-static void pack(unsigned char* buf, uint32_t i) {
+static void
+pack(unsigned char* buf, uint32_t i) {
   buf[0] = i & 255; i >>= 8;
   buf[1] = i & 255; i >>= 8;
   buf[2] = i & 255;
   buf[3] = i >> 8;
 }
 
-static uint32_t unpack(const unsigned char* buf) {
+static uint32_t
+unpack(const unsigned char* buf) {
   uint32_t n = buf[3];
   n <<= 8; n |= buf[2];
   n <<= 8; n |= buf[1];
@@ -43,14 +45,16 @@ static uint32_t unpack(const unsigned char* buf) {
   return n;
 }
 
-static int get_bit(uint32_t b, const char* key, uint32_t klen) {
+static int
+get_bit(uint32_t b, const char* key, uint32_t klen) {
   int index = b >> 3;
   if (index >= klen)
     return 0;
   return key[index] & (1 << (7 - (b % 8)));
 }
 
-static void printbits(const char *b, uint32_t blen) {
+static void
+printbits(const char *b, uint32_t blen) {
   uint32_t i, j;
   for (i = 0; i < blen; i++) {
     for (j = 0; j < 8; j++) {
@@ -60,38 +64,51 @@ static void printbits(const char *b, uint32_t blen) {
   }
 }
 
-static int diff_bit(const char* a, uint32_t alen,
-                    const char* b, uint32_t blen) {
-  char c1, c2, mask;
+static int
+diff_bit(const char* a, uint32_t alen,
+         const char* b, uint32_t blen) {
+  unsigned char c1, c2, mask;
   uint32_t i, j, todo = alen > blen ? alen : blen;
 
+  /* Consider padding zeroes after the end of input strings. */ 
   for (i = 0; i < todo; i++) {
-    c1 = (i < alen) ? a[i] : 0;
-    c2 = (i < blen) ? b[i] : 0;
-    if (c1 != c2) {
-      mask = ~(~c1 ^ c2);
+    c1 = (i < alen) ? (unsigned char)a[i] : 0;
+    c2 = (i < blen) ? (unsigned char)b[i] : 0;
+    if (c1 != c2)
       break;
-    }
   }
 
   if (i == alen && alen == blen)
     return -1;  /* same entry */
 
-  for (j = 0; j < 8; j++) {
-    if (mask & (1 << (7 - (j % 8))))
-      break;
-  }
+  i <<= 3;
+  mask = ~(~c1 ^ c2);
 
-  return (i << 3) + j;
+  /* Binary search on the diff bit. Three comparisons for any mask. */
+  if (mask & 0xf0) {
+    if (mask & 0xc0) {
+      return (mask & 0x80) ? i : i + 1;
+    } else {
+      return (mask & 0x20) ? i + 2 : i + 3;
+    }
+  } else {
+    if (mask & 0x0c) {
+      return (mask & 0x08) ? i + 4 : i + 5;
+    } else {
+      return (mask & 0x02) ? i + 6 : i + 7;
+    }
+  }
 }
 
-int is_leaf(const unsigned char *prev, const unsigned char *p) {
+static int
+is_leaf(const unsigned char *prev, const unsigned char *p) {
   if (prev == NULL)
     return 0;
   return bit(p) <= bit(prev);
 }
 
-static uint32_t log2ceil(uint32_t i) {
+static uint32_t
+log2ceil(uint32_t i) {
   uint32_t l = 0;
   if (i & (i - 1)) { l += 1; }
   if (i >> 16) { l += 16; i >>= 16; }
@@ -102,7 +119,8 @@ static uint32_t log2ceil(uint32_t i) {
   return l;
 }
 
-static int ensure_capacity(struct radixdb* tp, uint32_t extra_size) {
+static int
+ensure_capacity(struct radixdb* tp, uint32_t extra_size) {
   uint32_t new_size = 1 << log2ceil(tp->dend + extra_size);
   if (new_size > tp->size) {
     unsigned char* mem = (unsigned char*) realloc(tp->mem, new_size);
@@ -114,20 +132,8 @@ static int ensure_capacity(struct radixdb* tp, uint32_t extra_size) {
   return 0;
 }
 
-int radixdb_init(struct radixdb* tp) {
-  tp->mem = NULL;
-  tp->size = 0ul;
-  tp->dend = 4;
-  if (ensure_capacity(tp, 2000) == -1)
-    return -1;
-  return 0;
-}
-
-void radixdb_free(struct radixdb* tp) {
-  free(tp->mem);
-}
-
-static uint32_t insert_between(struct radixdb* tp,
+static uint32_t
+insert_between(struct radixdb* tp,
     unsigned char *p, unsigned char *n, int diff, unsigned char *prev) {
   if (is_leaf(prev, p) || diff < (int)bit(p)) {
     if (get_bit(diff, keystart(n), keylen(n)))
@@ -141,6 +147,19 @@ static uint32_t insert_between(struct radixdb* tp,
   else
     set_leftpos(p, insert_between(tp, leftpos(tp, p), n, diff, p));
   return pos(tp, p);
+}
+
+int radixdb_init(struct radixdb* tp) {
+  tp->mem = NULL;
+  tp->size = 0ul;
+  tp->dend = 4;
+  if (ensure_capacity(tp, 2000) == -1)
+    return -1;
+  return 0;
+}
+
+void radixdb_free(struct radixdb* tp) {
+  free(tp->mem);
 }
 
 int radixdb_add(struct radixdb* tp,
