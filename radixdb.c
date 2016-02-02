@@ -10,26 +10,8 @@
 
 #include "radixdb.h"
 
-#define pos(t, p) ((p) - (tp)->mem)
-#define empty(t) ((t)->dend == 4)
-#define set_root(t, pos) pack((t)->mem, pos)
-#define set_bit(x, i) pack(x, i)
-#define set_leftpos(x, i) pack((x) + 4, i)
-#define set_rightpos(x, i) pack((x) + 8, i)
-#define set_keylen(x, i) pack((x) + 12, i)
-#define set_datalen(x, i) pack((x) + 16, i)
-#define root(t) unpack((t)->mem)
-#define bit(x) unpack(x)
-#define leftpos(tp, x) ((tp)->mem + unpack((x) + 4))
-#define rightpos(tp, x) ((tp)->mem + unpack((x) + 8))
-#define keylen(x) unpack((x) + 12)
-#define datalen(x) unpack((x) + 16)
-#define keystart(x) ((x) + 20)
-#define datastart(x, klen) ((x) + 20 + (klen))
-#define nodesize(klen, vlen) (4 + 8 + 8 + (klen) + (vlen))
-
 static void
-pack(unsigned char* buf, uint32_t i) {
+uint32_pack(unsigned char *buf, uint32_t i) {
   buf[0] = i & 255; i >>= 8;
   buf[1] = i & 255; i >>= 8;
   buf[2] = i & 255;
@@ -37,7 +19,7 @@ pack(unsigned char* buf, uint32_t i) {
 }
 
 static uint32_t
-unpack(const unsigned char* buf) {
+uint32_unpack(const unsigned char *buf) {
   uint32_t n = buf[3];
   n <<= 8; n |= buf[2];
   n <<= 8; n |= buf[1];
@@ -46,11 +28,11 @@ unpack(const unsigned char* buf) {
 }
 
 static int
-get_bit(uint32_t b, const char* key, uint32_t klen) {
+get_bit(uint32_t b, const char *key, uint32_t klen) {
   int index = b >> 3;
   if (index >= klen)
     return 0;
-  return key[index] & (1 << (7 - (b % 8)));
+  return key[index] & (1 << (7 - (b & 7)));
 }
 
 static void
@@ -68,7 +50,7 @@ static int
 diff_bit(const char* a, uint32_t alen,
          const char* b, uint32_t blen) {
   unsigned char c1, c2, mask;
-  uint32_t i, j, todo = alen > blen ? alen : blen;
+  uint32_t i, todo = alen > blen ? alen : blen;
 
   /* Consider padding zeroes after the end of input strings. */ 
   for (i = 0; i < todo; i++) {
@@ -100,13 +82,6 @@ diff_bit(const char* a, uint32_t alen,
   }
 }
 
-static int
-is_leaf(const unsigned char *prev, const unsigned char *p) {
-  if (prev == NULL)
-    return 0;
-  return bit(p) <= bit(prev);
-}
-
 static uint32_t
 log2ceil(uint32_t i) {
   uint32_t l = 0;
@@ -121,9 +96,10 @@ log2ceil(uint32_t i) {
 
 static int
 ensure_capacity(struct radixdb* tp, uint32_t extra_size) {
+  unsigned char* mem;
   uint32_t new_size = 1 << log2ceil(tp->dend + extra_size);
   if (new_size > tp->size) {
-    unsigned char* mem = (unsigned char*) realloc(tp->mem, new_size);
+    mem = (unsigned char*) realloc(tp->mem, new_size);
     if (!mem)
       return -1;
     tp->size = new_size;
@@ -133,20 +109,88 @@ ensure_capacity(struct radixdb* tp, uint32_t extra_size) {
 }
 
 static uint32_t
-insert_between(struct radixdb* tp,
-    unsigned char *p, unsigned char *n, int diff, unsigned char *prev) {
-  if (is_leaf(prev, p) || diff < (int)bit(p)) {
-    if (get_bit(diff, keystart(n), keylen(n)))
-      set_leftpos(n, pos(tp, p));
-    else
-      set_rightpos(n, pos(tp, p));
-    return pos(tp, n);
+insert_between(struct radixdb* tp, const char *key, uint32_t klen,
+    uint32_t pos, uint32_t n, uint32_t b0, int diff) {
+  uint32_t b1 = uint32_unpack(tp->mem + pos);
+  if ((b0 != 0xfffffffful && b1 <= b0) || diff < (int)b1) {
+    if (get_bit(diff, key, klen)) {
+      uint32_pack(tp->mem + n + 4, pos);
+    } else {
+      uint32_pack(tp->mem + n + 8, pos);
+    }
+    return n;
   }
-  if (get_bit(bit(p), keystart(n), keylen(n)))
-    set_rightpos(p, insert_between(tp, rightpos(tp, p), n, diff, p));
-  else
-    set_leftpos(p, insert_between(tp, leftpos(tp, p), n, diff, p));
-  return pos(tp, p);
+  if (get_bit(b1, key, klen)) {
+    uint32_pack(tp->mem + pos + 8,
+        insert_between(tp, key, klen, uint32_unpack(tp->mem + pos + 8), n, b1, diff));
+  } else {
+    uint32_pack(tp->mem + pos + 4,
+        insert_between(tp, key, klen, uint32_unpack(tp->mem + pos + 4), n, b1, diff));
+  }
+  return pos;
+}
+
+static uint32_t
+search_node(const struct radixdb *tp, const char *key, uint32_t klen) {
+  uint32_t pos, b0, b1;
+  pos = uint32_unpack(tp->mem);
+  b0 = uint32_unpack(tp->mem + pos);
+  if (get_bit(b0, key, klen)) {
+    pos = uint32_unpack(tp->mem + pos + 8);
+  } else {
+    pos = uint32_unpack(tp->mem + pos + 4);
+  }
+  for (;;) {
+    b1 = uint32_unpack(tp->mem + pos);
+    if (b1 <= b0)
+      break;
+    if (get_bit(b1, key, klen)) {
+      pos = uint32_unpack(tp->mem + pos + 8);
+    } else {
+      pos = uint32_unpack(tp->mem + pos + 4);
+    }
+    b0 = b1;
+  }
+  return pos;
+}
+
+static uint32_t
+match_prefix(const struct radixdb *tp, const char *key, uint32_t klen,
+    uint32_t pos) {
+  uint32_t prefixlen = uint32_unpack(tp->mem + pos + 12);
+  /*printf("%lu, %.*s == %lu, %.*s\n", (unsigned long)klen, (int)klen, key,
+      (unsigned long)prefixlen, (int)prefixlen, tp->mem + pos + 20);*/
+  if (klen >= prefixlen && strncmp(key, tp->mem + pos + 20, prefixlen) == 0) {
+    /*printf("pos: %lu\n", (unsigned long)pos);*/
+    return pos;
+  }
+  return 0xfffffffful;
+}
+
+static uint32_t
+search_largest_prefix(const struct radixdb *tp,
+    const char *key, uint32_t klen, uint32_t pos, uint32_t b0) {
+  /* TODO(guibv): once it reaches the end of the recursion, get the largest
+   * common prefix. Then start checking backwards for prefixes that could
+   * match that found largest prefix.
+   */
+  uint32_t nextmatch, b1 = uint32_unpack(tp->mem + pos);
+  /*printf("b1: %lu\n", (unsigned long)b1);*/
+  if (b0 != 0xfffffffful && b1 <= b0) {
+    return match_prefix(tp, key, klen, pos);
+  }
+  if (get_bit(b1, key, klen)) {
+    nextmatch = search_largest_prefix(tp, key, klen,
+        uint32_unpack(tp->mem + pos + 8), b1);
+  } else {
+    nextmatch = search_largest_prefix(tp, key, klen,
+        uint32_unpack(tp->mem + pos + 4), b1);
+  }
+  if (nextmatch == 0xfffffffful) {
+    return match_prefix(tp, key, klen, pos);
+  } else {
+    return nextmatch;
+  }
 }
 
 int radixdb_init(struct radixdb* tp) {
@@ -165,69 +209,55 @@ void radixdb_free(struct radixdb* tp) {
 int radixdb_add(struct radixdb* tp,
                 const char *key, uint32_t klen,
                 const char *val, uint32_t vlen) {
-  unsigned char *n, *p;
-  uint32_t b0;
   int diff;
+  uint32_t n, pos, nodesize;
 
-  if (ensure_capacity(tp, nodesize(klen, vlen)) == -1)
+  nodesize = 4 + 8 + 8 + klen + vlen;
+  if (ensure_capacity(tp, nodesize) == -1)
     return -1;
 
   /* copy the key and value to the new node */
-  n = tp->mem + tp->dend;
-  set_bit(n, (klen << 3) - 1);
-  set_leftpos(n, tp->dend);
-  set_rightpos(n, tp->dend);
-  set_keylen(n, klen);
-  set_datalen(n, vlen);
-  memcpy(keystart(n), key, klen);
-  memcpy(datastart(n, klen), val, vlen);
+  n = tp->dend;
+  uint32_pack(tp->mem + n, (klen << 3) - 1);
+  uint32_pack(tp->mem + n + 4, tp->dend);
+  uint32_pack(tp->mem + n + 8, tp->dend);
+  uint32_pack(tp->mem + n + 12, klen);
+  uint32_pack(tp->mem + n + 16, vlen);
+  memcpy(tp->mem + n + 20, key, klen);
+  memcpy(tp->mem + n + 20 + klen, val, vlen);
 
-  if (empty(tp)) {
+  if (tp->dend == 4) {
     /* first node inserted */
-    set_root(tp, tp->dend);
+    uint32_pack(tp->mem, tp->dend);
   } else {
     /* find insert position */
-    p = tp->mem + root(tp);
-    do {
-      b0 = bit(p);
-      if (get_bit(bit(p), key, klen))
-        p = rightpos(tp, p);
-      else
-        p = leftpos(tp, p);
-    } while (bit(p) > b0);
-    diff = diff_bit(
-        keystart(p), keylen(p), key, klen);
+    pos = search_node(tp, key, klen);
+    diff = diff_bit(tp->mem + pos + 20, uint32_unpack(tp->mem + pos + 12),
+        key, klen);
     if (diff == -1) {
       errno = EEXIST;
       return -1;  /* entry already exists */
     }
-    set_bit(n, diff);
-    set_root(tp, insert_between(tp, tp->mem + root(tp), n, diff, NULL));
+    uint32_pack(tp->mem + n, (uint32_t)diff);
+    uint32_pack(tp->mem, insert_between(tp, key, klen,
+        uint32_unpack(tp->mem), n, 0xfffffffful, diff));
   }
 
-  tp->dend += nodesize(klen, vlen);
+  tp->dend += nodesize;
   return 0;
 }
 
 int radixdb_lookup(const struct radixdb* tp,
                    const char *key, uint32_t klen,
                    const char **val, uint32_t *vlen) {
-  unsigned char *p;
-  uint32_t b0;
+  uint32_t pos;
 
-  if (!empty(tp)) {
-    p = tp->mem + root(tp);
-    do {
-      b0 = bit(p);
-      if (get_bit(bit(p), key, klen))
-        p = rightpos(tp, p);
-      else
-        p = leftpos(tp, p);
-    } while (bit(p) > b0);
- 
-    if (klen == keylen(p) && memcmp(keystart(p), key, klen) == 0) {
-      *val = datastart(p, klen);
-      *vlen = datalen(p);
+  if (tp->dend > 4) {
+    pos = search_node(tp, key, klen);
+    if (klen == uint32_unpack(tp->mem + pos + 12)
+        && memcmp(tp->mem + pos + 20, key, klen) == 0) {
+      *val = tp->mem + pos + 20 + klen;
+      *vlen = uint32_unpack(tp->mem + pos + 16);
       return 0;
     }
   }
@@ -239,21 +269,41 @@ int radixdb_lookup(const struct radixdb* tp,
 int radixdb_longest_match(const struct radixdb* tp,
                           const char *key, uint32_t klen,
                           const char **val, uint32_t *vlen) {
+  uint32_t pos;
 
+  if (tp->dend > 4) {
+    pos = search_largest_prefix(tp, key, klen,
+        uint32_unpack(tp->mem), 0xfffffffful);
+    if (pos != 0xfffffffful) {
+      klen = uint32_unpack(tp->mem + pos + 12);
+      *val = tp->mem + pos + 20 + klen;
+      *vlen = uint32_unpack(tp->mem + pos + 16);
+      return 0;
+    }
+  }
+
+  errno = ENOENT;
+  return -1;
 }
 
 void radixdb_dump(const struct radixdb* tp) {
-  unsigned char *p = tp->mem + root(tp);
+  uint32_t pos = 4, bit, left, right, klen, vlen;
   printf("digraph G {\n");
-  while (pos(tp, p) < tp->dend) {
-    printf("  n%ld -> n%ld [label=\"left\"];\n"
-           "  n%ld -> n%ld [label=\"right\"];\n",
-        pos(tp, p), pos(tp, leftpos(tp, p)),
-        pos(tp, p), pos(tp, rightpos(tp, p)));
-    printf("  n%ld [label=\"%u,", pos(tp, p), bit(p));
-    printbits((char*)keystart(p), keylen(p));
+  while (pos < tp->dend) {
+    bit = uint32_unpack(tp->mem + pos);
+    left = uint32_unpack(tp->mem + pos + 4);
+    right = uint32_unpack(tp->mem + pos + 8);
+    klen = uint32_unpack(tp->mem + pos + 12);
+    vlen = uint32_unpack(tp->mem + pos + 16);
+    printf("  n%lu -> n%lu [label=\"left\"];\n"
+           "  n%lu -> n%lu [label=\"right\"];\n",
+        (unsigned long)pos, (unsigned long)left,
+        (unsigned long)pos, (unsigned long)right);
+    printf("  n%lu [label=\"%lu,", (unsigned long)pos,
+        (unsigned long)bit);
+    printbits((char*)(tp->mem + pos + 20), klen);
     printf("\"];\n");
-    p += nodesize(keylen(p), datalen(p));
+    pos += 4 + 8 + 8 + klen + vlen;
   }
   printf("}\n");
 }
