@@ -10,7 +10,7 @@ or greater than the node bit.  The overhead for each key-value pair is exactly
 
 It provides the following:
  * O(k) operations. In some cases, this can be faster than a hash table.
- * Largest prefix match.
+ * Optimized largest prefix match operation.
 
 This implementation does not support deletion, as it's intended for big
 read-only databases.
