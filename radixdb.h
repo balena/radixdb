@@ -34,6 +34,8 @@ int radixdb_longest_match(const struct radixdb* tp,
                           const char **keymatch, uint32_t *matchlen,
                           const char **val, uint32_t *vlen);
 
+void radixdb_dump2dot(const struct radixdb* tp);
+
 void radixdb_dump(const struct radixdb* tp);
 
 #ifdef __cplusplus

@@ -32,8 +32,8 @@ int main(int argc, char **argv) {
   HANDLE hFile, hMapping;
 #endif
 
-  if (argc != 3) {
-    printf("usage: radixdbmatch f key");
+  if (argc != 2) {
+    printf("usage: radixdbdump f");
     return 1;
   }
 
@@ -79,15 +79,7 @@ int main(int argc, char **argv) {
 
   db.size = 0;  /* file is read-only */
 
-  if (radixdb_longest_match(&db, argv[2], strlen(argv[2]),
-      &key, &klen, &val, &vlen) == 0) {
-    printf("+%lu,%lu:%.*s->%.*s\n",
-        (unsigned long)klen, (unsigned long)vlen,
-        (int)klen, key,
-        (int)vlen, val);
-  } else {
-    return 2;
-  }
+  radixdb_dump(&db);
 
 #ifdef _WIN32
   UnmapViewOfFile((void*) db.mem);

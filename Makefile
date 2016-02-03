@@ -37,7 +37,7 @@ LIB_SRCS = radixdb.c
 
 DISTFILES = Makefile radixdb.h $(LIB_SRCS)
 all: static
-static: staticlib radixdbmk radixdbget radixdbmatch
+static: staticlib radixdbmk radixdbget radixdbmatch radixdbdump
 staticlib: $(LIB)
 
 LIB_OBJS = $(LIB_SRCS:.c=.o)
@@ -56,6 +56,9 @@ radixdbget: radixdbget.o $(USELIB)
 radixdbmatch: radixdbmatch.o $(USELIB)
 	$(LD) $(LDFLAGS) -o $@ radixdbmatch.o $(USELIB)
 
+radixdbdump: radixdbdump.o $(USELIB)
+	$(LD) $(LDFLAGS) -o $@ radixdbdump.o $(USELIB)
+
 .SUFFIXES:
 .SUFFIXES: .c .o .lo
 
@@ -66,12 +69,13 @@ radixdb.o: radixdb.h
 radixdbmk.o: radixdb.h
 radixdbget.o: radixdb.h
 radixdbmatch.o: radixdb.h
+radixdbdump.o: radixdb.h
 $(LIB_OBJS): radixdb.h
 
 clean:
 	-rm -f *.o core *~ tests.out tests-shared.ok
 realclean distclean:
-	-rm -f *.o core *~ $(LIBBASE)[._][aps]* radixdbmk radixdbget radixdbmatch
+	-rm -f *.o core *~ $(LIBBASE)[._][aps]* radixdbmk radixdbget radixdbmatch radixdbdump
 
 DNAME = radixdb-$(VERSION)
 dist: $(DNAME).tar.gz

@@ -300,7 +300,7 @@ int radixdb_longest_match(const struct radixdb* tp,
   return -1;
 }
 
-void radixdb_dump(const struct radixdb* tp) {
+void radixdb_dump2dot(const struct radixdb* tp) {
   uint32_t pos = 4, bit, left, right, klen, vlen;
   printf("digraph G {\n");
   while (pos < tp->dend) {
@@ -320,4 +320,18 @@ void radixdb_dump(const struct radixdb* tp) {
     pos += 4 + 8 + 8 + klen + vlen;
   }
   printf("}\n");
+}
+
+void radixdb_dump(const struct radixdb* tp) {
+  uint32_t pos = 4, klen, vlen;
+  while (pos < tp->dend) {
+    klen = uint32_unpack(tp->mem + pos + 12);
+    vlen = uint32_unpack(tp->mem + pos + 16);
+    printf("+%lu,%lu:%.*s->%.*s\n",
+        (unsigned long)klen, (unsigned long)vlen,
+        (int)klen, tp->mem + pos + 20,
+        (int)vlen, tp->mem + pos + 20 + klen);
+    pos += 4 + 8 + 8 + klen + vlen;
+  }
+  printf("\n");
 }
