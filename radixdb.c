@@ -49,6 +49,8 @@ diff_bit(const unsigned char* a, uint32_t alen,
       break;
   }
 
+  if (i == blen)
+    return i << 3;
   if (i == alen && alen == blen)
     return -1;  /* same entry */
 
