@@ -1,7 +1,7 @@
 radixdb
 =======
 
-This library provides a C implementation of the Patricia Trie.  The algorithm
+This library provides a C99 implementation of the Patricia Trie.  The algorithm
 follows the 3 control words (32-bit) overhead -- length (diff bit) and
 left/right indexes to next nodes -- plus length of the key and value. There's
 no external nodes, so data is located at a node where the parent bit is equal
@@ -43,8 +43,8 @@ bytes of memory per record. A database cannot exceed 4 gigabytes.
 `f` is portable across machines.
 
 
-The cdbget program
-------------------
+The radixdbget program
+----------------------
 
     $ ./radixdbget f.radixdb k
 
@@ -58,13 +58,23 @@ If `radixdbget` encounters a read error, write error, or database format error,
 it complains and exits 1.
 
 
-The cdbmatch program
---------------------
+The radixdbmatch program
+------------------------
 
     $ ./radixdbmatch f.radixdb k
 
 `radixdbmatch` searches for the longest prefix available in the constant
 database `f.radixdb` matching `k`, in the format `+klen,dlen:key->data`.
+
+
+The radixdbdump program
+-----------------------
+
+    $ ./radixdbdump f.radixdb
+
+`radixdbdump` reverses the operation performed by `radixdbdump`, printing back
+the same input passed to `radixdbmk`.  The order of the database records is
+preserved.
 
 
 Have fun!
