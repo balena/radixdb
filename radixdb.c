@@ -42,7 +42,8 @@ printbits(const char *b, uint32_t blen) {
     for (j = 0; j < 8; j++) {
       putchar(get_bit(j, b + i, blen) ? '1' : '0');
     }
-    putchar(' ');
+    if (i + 1 < blen)
+      putchar(' ');
   }
 }
 
@@ -109,24 +110,33 @@ ensure_capacity(struct radixdb* tp, uint32_t extra_size) {
 }
 
 static uint32_t
-insert_between(struct radixdb* tp, const char *key, uint32_t klen,
+insert_between_inner(struct radixdb* tp, const char *key, uint32_t klen,
     uint32_t pos, uint32_t n, uint32_t b0, int diff) {
   uint32_t b1 = uint32_unpack(tp->mem + pos);
-  if ((b0 != 0xfffffffful && b1 <= b0) || diff < (int)b1) {
-    if (get_bit(diff, key, klen)) {
-      uint32_pack(tp->mem + n + 4, pos);
-    } else {
-      uint32_pack(tp->mem + n + 8, pos);
-    }
+  unsigned char *tmp;
+  if (b1 <= b0 || diff < (int)b1) {
+    uint32_pack(tp->mem + n + (get_bit(diff, key, klen) ? 4 : 8), pos);
     return n;
   }
-  if (get_bit(b1, key, klen)) {
-    uint32_pack(tp->mem + pos + 8,
-        insert_between(tp, key, klen, uint32_unpack(tp->mem + pos + 8), n, b1, diff));
-  } else {
-    uint32_pack(tp->mem + pos + 4,
-        insert_between(tp, key, klen, uint32_unpack(tp->mem + pos + 4), n, b1, diff));
+  tmp = tp->mem + pos + (get_bit(b1, key, klen) ? 8 : 4);
+  n = insert_between_inner(tp, key, klen, uint32_unpack(tmp), n, b1, diff);
+  uint32_pack(tmp, n);
+  return pos;
+}
+
+static uint32_t
+insert_between(struct radixdb* tp, const char *key, uint32_t klen,
+    uint32_t n, int diff) {
+  uint32_t pos = uint32_unpack(tp->mem);
+  uint32_t b0 = uint32_unpack(tp->mem + pos);
+  unsigned char *tmp;
+  if (diff < (int)b0) {
+    uint32_pack(tp->mem + n + (get_bit(diff, key, klen) ? 4 : 8), pos);
+    return n;
   }
+  tmp = tp->mem + pos + (get_bit(b0, key, klen) ? 8 : 4);
+  n = insert_between_inner(tp, key, klen, uint32_unpack(tmp), n, b0, diff);
+  uint32_pack(tmp, n);
   return pos;
 }
 
@@ -135,62 +145,66 @@ search_node(const struct radixdb *tp, const char *key, uint32_t klen) {
   uint32_t pos, b0, b1;
   pos = uint32_unpack(tp->mem);
   b0 = uint32_unpack(tp->mem + pos);
-  if (get_bit(b0, key, klen)) {
-    pos = uint32_unpack(tp->mem + pos + 8);
-  } else {
-    pos = uint32_unpack(tp->mem + pos + 4);
-  }
+  pos = uint32_unpack(tp->mem + pos + (get_bit(b0, key, klen) ? 8 : 4));
   for (;;) {
     b1 = uint32_unpack(tp->mem + pos);
     if (b1 <= b0)
       break;
-    if (get_bit(b1, key, klen)) {
-      pos = uint32_unpack(tp->mem + pos + 8);
-    } else {
-      pos = uint32_unpack(tp->mem + pos + 4);
-    }
+    pos = uint32_unpack(tp->mem + pos + (get_bit(b1, key, klen) ? 8 : 4));
     b0 = b1;
   }
   return pos;
 }
 
 static uint32_t
-match_prefix(const struct radixdb *tp, const char *key, uint32_t klen,
-    uint32_t pos) {
-  uint32_t prefixlen = uint32_unpack(tp->mem + pos + 12);
-  /*printf("%lu, %.*s == %lu, %.*s\n", (unsigned long)klen, (int)klen, key,
-      (unsigned long)prefixlen, (int)prefixlen, tp->mem + pos + 20);*/
-  if (klen >= prefixlen && strncmp(key, tp->mem + pos + 20, prefixlen) == 0) {
-    /*printf("pos: %lu\n", (unsigned long)pos);*/
-    return pos;
+find_prefix(const char *a, uint32_t alen, const char *b, uint32_t blen) {
+  unsigned char c1, c2;
+  uint32_t i, todo = alen < blen ? alen : blen;
+
+  for (i = 0; i < todo; i++) {
+    c1 = (unsigned char)a[i];
+    c2 = (unsigned char)b[i];
+    if (c1 != c2)
+      break;
   }
-  return 0xfffffffful;
+
+#if 0
+  printf("prefix(%.*s, %.*s) -> %.*s\n",
+      (int)alen, a, (int)blen, b,
+      (int)i, b);
+#endif
+  return i;
+}
+
+static uint32_t
+search_largest_prefix_inner(const struct radixdb *tp,
+    const char *key, uint32_t klen, uint32_t pos, uint32_t b0,
+    uint32_t *max_length) {
+  uint32_t nextpos, poskeylen = uint32_unpack(tp->mem + pos + 12);
+  uint32_t nextmatch, b1 = uint32_unpack(tp->mem + pos);
+  if (b1 <= b0) {
+    *max_length = find_prefix(key, klen, tp->mem + pos + 20, poskeylen);
+    return (*max_length == poskeylen) ? pos : 0xfffffffful;
+  }
+  nextpos = uint32_unpack(tp->mem + pos + (get_bit(b1, key, klen) ? 8 : 4));
+  nextmatch = search_largest_prefix_inner(tp, key, klen, nextpos, b1, max_length);
+  if (nextmatch == 0xfffffffful
+      && poskeylen <= *max_length) {
+    *max_length = find_prefix(key, *max_length, tp->mem + pos + 20, poskeylen);
+    if (*max_length == poskeylen)
+      return pos;
+  }
+  return nextmatch;
 }
 
 static uint32_t
 search_largest_prefix(const struct radixdb *tp,
-    const char *key, uint32_t klen, uint32_t pos, uint32_t b0) {
-  /* TODO(guibv): once it reaches the end of the recursion, get the largest
-   * common prefix. Then start checking backwards for prefixes that could
-   * match that found largest prefix.
-   */
-  uint32_t nextmatch, b1 = uint32_unpack(tp->mem + pos);
-  /*printf("b1: %lu\n", (unsigned long)b1);*/
-  if (b0 != 0xfffffffful && b1 <= b0) {
-    return match_prefix(tp, key, klen, pos);
-  }
-  if (get_bit(b1, key, klen)) {
-    nextmatch = search_largest_prefix(tp, key, klen,
-        uint32_unpack(tp->mem + pos + 8), b1);
-  } else {
-    nextmatch = search_largest_prefix(tp, key, klen,
-        uint32_unpack(tp->mem + pos + 4), b1);
-  }
-  if (nextmatch == 0xfffffffful) {
-    return match_prefix(tp, key, klen, pos);
-  } else {
-    return nextmatch;
-  }
+    const char *key, uint32_t klen) {
+  uint32_t max_length;
+  uint32_t pos = uint32_unpack(tp->mem);
+  uint32_t b0 = uint32_unpack(tp->mem + pos);
+  pos = uint32_unpack(tp->mem + pos + (get_bit(b0, key, klen) ? 8 : 4));
+  return search_largest_prefix_inner(tp, key, klen, pos, b0, &max_length);
 }
 
 int radixdb_init(struct radixdb* tp) {
@@ -218,7 +232,7 @@ int radixdb_add(struct radixdb* tp,
 
   /* copy the key and value to the new node */
   n = tp->dend;
-  uint32_pack(tp->mem + n, (klen << 3) - 1);
+  uint32_pack(tp->mem + n, klen << 3);
   uint32_pack(tp->mem + n + 4, tp->dend);
   uint32_pack(tp->mem + n + 8, tp->dend);
   uint32_pack(tp->mem + n + 12, klen);
@@ -239,8 +253,7 @@ int radixdb_add(struct radixdb* tp,
       return -1;  /* entry already exists */
     }
     uint32_pack(tp->mem + n, (uint32_t)diff);
-    uint32_pack(tp->mem, insert_between(tp, key, klen,
-        uint32_unpack(tp->mem), n, 0xfffffffful, diff));
+    uint32_pack(tp->mem, insert_between(tp, key, klen, n, diff));
   }
 
   tp->dend += nodesize;
@@ -272,8 +285,7 @@ int radixdb_longest_match(const struct radixdb* tp,
   uint32_t pos;
 
   if (tp->dend > 4) {
-    pos = search_largest_prefix(tp, key, klen,
-        uint32_unpack(tp->mem), 0xfffffffful);
+    pos = search_largest_prefix(tp, key, klen);
     if (pos != 0xfffffffful) {
       klen = uint32_unpack(tp->mem + pos + 12);
       *val = tp->mem + pos + 20 + klen;

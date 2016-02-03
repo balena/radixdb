@@ -58,18 +58,6 @@ int main(int argc, char **argv) {
     radixdb_add(&db, buf, klen, buf + klen, vlen);
   }
   radixdb_dump(&db);
-
-/*
-  {
-    const char *val;
-    uint32_t vlen;
-    if (radixdb_longest_match(&db, "93761234", 8, &val, &vlen) == 0) {
-      printf("Found match: %.*s\n", (int)vlen, val);
-    } else {
-      printf("Not found\n");
-    }
-  }
-*/
   radixdb_free(&db);
 
   free(buf);
