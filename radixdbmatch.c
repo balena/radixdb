@@ -26,8 +26,8 @@ int main(int argc, char **argv) {
   struct stat st;
   struct radixdb db;
   int fd;
-  const char *val;
-  uint32_t vlen;
+  const char *val, *key;
+  uint32_t vlen, klen;
 #ifdef _WIN32
   HANDLE hFile, hMapping;
 #endif
@@ -79,10 +79,14 @@ int main(int argc, char **argv) {
 
   db.size = 0;  /* file is read-only */
 
-  if (radixdb_longest_match(&db, argv[2], strlen(argv[2]), &val, &vlen) == 0) {
-    printf("Found: %.*s\n", (int)vlen, val);
+  if (radixdb_longest_match(&db, argv[2], strlen(argv[2]),
+      &key, &klen, &val, &vlen) == 0) {
+    printf("+%lu,%lu:%.*s->%.*s\n",
+        (unsigned long)klen, (unsigned long)vlen,
+        (int)klen, key,
+        (int)vlen, val);
   } else {
-    printf("Not found\n");
+    return 2;
   }
 
 #ifdef _WIN32

@@ -281,14 +281,16 @@ int radixdb_lookup(const struct radixdb* tp,
 
 int radixdb_longest_match(const struct radixdb* tp,
                           const char *key, uint32_t klen,
+                          const char **keymatch, uint32_t *matchlen,
                           const char **val, uint32_t *vlen) {
   uint32_t pos;
 
   if (tp->dend > 4) {
     pos = search_largest_prefix(tp, key, klen);
     if (pos != 0xfffffffful) {
-      klen = uint32_unpack(tp->mem + pos + 12);
-      *val = tp->mem + pos + 20 + klen;
+      *keymatch = tp->mem + pos + 20;
+      *matchlen = uint32_unpack(tp->mem + pos + 12);
+      *val = tp->mem + pos + 20 + *matchlen;
       *vlen = uint32_unpack(tp->mem + pos + 16);
       return 0;
     }

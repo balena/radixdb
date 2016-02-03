@@ -52,7 +52,7 @@ The cdbget program
 `f.radixdb`. The constant database must be readable.
 
 Normally `radixdbget` prints the data with key `k` and exits 0. If there is no
-record with the key `k`, `radixdbget` exits printing "Not found".
+record with the key `k`, `radixdbget` exits 2.
 
 If `radixdbget` encounters a read error, write error, or database format error,
 it complains and exits 1.
@@ -64,7 +64,7 @@ The cdbmatch program
     $ ./radixdbmatch f.radixdb k
 
 `radixdbmatch` searches for the longest prefix available in the constant
-database `f.radixdb` matching `k`.
+database `f.radixdb` matching `k`, in the format `+klen,dlen:key->data`.
 
 
 Have fun!

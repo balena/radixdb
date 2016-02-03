@@ -20,7 +20,7 @@ CC = cc
 CFLAGS = -O0 -g
 CDEFS = -D_FILE_OFFSET_BITS=64
 LD = $(CC)
-LDFLAGS =
+LDFLAGS = $(CFLAGS)
 
 AR = ar
 ARFLAGS = rv
