@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
       badinput();
     radixdb_add(&db, buf, klen, buf + klen, vlen);
   }
-  radixdb_dump(&db);
+  fwrite(db.mem, db.dend, 1, stdout);
   radixdb_free(&db);
 
   free(buf);
