@@ -35,18 +35,6 @@ get_bit(uint32_t b, const char *key, uint32_t klen) {
   return key[index] & (1 << (7 - (b & 7)));
 }
 
-static void
-printbits(const char *b, uint32_t blen) {
-  uint32_t i, j;
-  for (i = 0; i < blen; i++) {
-    for (j = 0; j < 8; j++) {
-      putchar(get_bit(j, b + i, blen) ? '1' : '0');
-    }
-    if (i + 1 < blen)
-      putchar(' ');
-  }
-}
-
 static int
 diff_bit(const unsigned char* a, uint32_t alen,
          const unsigned char* b, uint32_t blen) {
@@ -312,20 +300,23 @@ int radixdb_longest_match(const struct radixdb* tp,
 void radixdb_dump2dot(const struct radixdb* tp) {
   uint32_t pos = 4, bit, left, right, klen, vlen;
   printf("digraph G {\n");
+  printf("  node [shape=record];\n");
   while (pos < tp->dend) {
     bit = uint32_unpack(tp->mem + pos);
     left = uint32_unpack(tp->mem + pos + 4);
     right = uint32_unpack(tp->mem + pos + 8);
     klen = uint32_unpack(tp->mem + pos + 12);
     vlen = uint32_unpack(tp->mem + pos + 16);
-    printf("  n%lu -> n%lu [label=\"left\"];\n"
-           "  n%lu -> n%lu [label=\"right\"];\n",
-        (unsigned long)pos, (unsigned long)left,
-        (unsigned long)pos, (unsigned long)right);
-    printf("  n%lu [label=\"%lu,", (unsigned long)pos,
-        (unsigned long)bit);
-    printbits((char*)(tp->mem + pos + 20), klen);
-    printf("\"];\n");
+    printf("  n%lu [label=\"{{%lu|%lu|\\\"%.*s\\\"&rarr;\\\"%.*s\\\"}"
+           "|{<l>left|<r>right}}\"];\n",
+        (unsigned long)pos,
+        (unsigned long)(bit>>3), (unsigned long)(bit&7),
+        (int)klen, (const char*)(tp->mem + pos + 20),
+        (int)vlen, (const char*)(tp->mem + pos + 20 + klen));
+    printf("  n%lu:l -> n%lu;\n"
+           "  n%lu:r -> n%lu;\n",
+           (unsigned long)pos, (unsigned long)left,
+           (unsigned long)pos, (unsigned long)right);
     pos += 4 + 8 + 8 + klen + vlen;
   }
   printf("}\n");
