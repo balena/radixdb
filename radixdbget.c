@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
   struct radixdb db;
   int fd;
   const char *val;
-  uint32_t vlen;
+  size_t vlen;
 #ifdef _WIN32
   HANDLE hFile, hMapping;
 #endif

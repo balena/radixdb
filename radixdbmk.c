@@ -39,7 +39,6 @@ static void badinput() {
 int main(int argc, char **argv) {
   char c;
   char* buf = NULL;
-  size_t n = 0;
   struct radixdb db;
 
   radixdb_init(&db);

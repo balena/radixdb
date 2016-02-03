@@ -48,15 +48,15 @@ printbits(const char *b, uint32_t blen) {
 }
 
 static int
-diff_bit(const char* a, uint32_t alen,
-         const char* b, uint32_t blen) {
+diff_bit(const unsigned char* a, uint32_t alen,
+         const unsigned char* b, uint32_t blen) {
   unsigned char c1, c2, mask;
   uint32_t i, todo = alen > blen ? alen : blen;
 
   /* Consider padding zeroes after the end of input strings. */ 
   for (i = 0; i < todo; i++) {
-    c1 = (i < alen) ? (unsigned char)a[i] : 0;
-    c2 = (i < blen) ? (unsigned char)b[i] : 0;
+    c1 = (i < alen) ? a[i] : 0;
+    c2 = (i < blen) ? b[i] : 0;
     if (c1 != c2)
       break;
   }
@@ -96,9 +96,16 @@ log2ceil(uint32_t i) {
 }
 
 static int
-ensure_capacity(struct radixdb* tp, uint32_t extra_size) {
+ensure_capacity(struct radixdb* tp, size_t extra_size) {
   unsigned char* mem;
-  uint32_t new_size = 1 << log2ceil(tp->dend + extra_size);
+  uint32_t new_size;
+  if ((uint32_t)(tp->dend + extra_size) < tp->dend) {
+    return -1;  /* memory overflow */
+  } else if ((uint32_t)(tp->dend + extra_size) > 0x80000000ul) {
+    new_size = 0xfffffffful;  /* allocate max size */
+  } else {
+    new_size = 1 << log2ceil(tp->dend + extra_size);
+  }
   if (new_size > tp->size) {
     mem = (unsigned char*) realloc(tp->mem, new_size);
     if (!mem)
@@ -183,14 +190,16 @@ search_largest_prefix_inner(const struct radixdb *tp,
   uint32_t nextpos, poskeylen = uint32_unpack(tp->mem + pos + 12);
   uint32_t nextmatch, b1 = uint32_unpack(tp->mem + pos);
   if (b1 <= b0) {
-    *max_length = find_prefix(key, klen, tp->mem + pos + 20, poskeylen);
+    *max_length = find_prefix(key, klen,
+        (const char*)(tp->mem + pos + 20), poskeylen);
     return (*max_length == poskeylen) ? pos : 0xfffffffful;
   }
   nextpos = uint32_unpack(tp->mem + pos + (get_bit(b1, key, klen) ? 8 : 4));
   nextmatch = search_largest_prefix_inner(tp, key, klen, nextpos, b1, max_length);
   if (nextmatch == 0xfffffffful
       && poskeylen <= *max_length) {
-    *max_length = find_prefix(key, *max_length, tp->mem + pos + 20, poskeylen);
+    *max_length = find_prefix(key, *max_length,
+        (const char*)(tp->mem + pos + 20), poskeylen);
     if (*max_length == poskeylen)
       return pos;
   }
@@ -221,8 +230,8 @@ void radixdb_free(struct radixdb* tp) {
 }
 
 int radixdb_add(struct radixdb* tp,
-                const char *key, uint32_t klen,
-                const char *val, uint32_t vlen) {
+                const char *key, size_t klen,
+                const char *val, size_t vlen) {
   int diff;
   uint32_t n, pos, nodesize;
 
@@ -247,7 +256,7 @@ int radixdb_add(struct radixdb* tp,
     /* find insert position */
     pos = search_node(tp, key, klen);
     diff = diff_bit(tp->mem + pos + 20, uint32_unpack(tp->mem + pos + 12),
-        key, klen);
+        (const unsigned char*)key, klen);
     if (diff == -1) {
       errno = EEXIST;
       return -1;  /* entry already exists */
@@ -261,15 +270,15 @@ int radixdb_add(struct radixdb* tp,
 }
 
 int radixdb_lookup(const struct radixdb* tp,
-                   const char *key, uint32_t klen,
-                   const char **val, uint32_t *vlen) {
+                   const char *key, size_t klen,
+                   const char **val, size_t *vlen) {
   uint32_t pos;
 
   if (tp->dend > 4) {
     pos = search_node(tp, key, klen);
     if (klen == uint32_unpack(tp->mem + pos + 12)
         && memcmp(tp->mem + pos + 20, key, klen) == 0) {
-      *val = tp->mem + pos + 20 + klen;
+      *val = (const char*)(tp->mem + pos + 20 + klen);
       *vlen = uint32_unpack(tp->mem + pos + 16);
       return 0;
     }
@@ -280,17 +289,17 @@ int radixdb_lookup(const struct radixdb* tp,
 }
 
 int radixdb_longest_match(const struct radixdb* tp,
-                          const char *key, uint32_t klen,
-                          const char **keymatch, uint32_t *matchlen,
-                          const char **val, uint32_t *vlen) {
+                          const char *key, size_t klen,
+                          const char **keymatch, size_t *matchlen,
+                          const char **val, size_t *vlen) {
   uint32_t pos;
 
   if (tp->dend > 4) {
     pos = search_largest_prefix(tp, key, klen);
     if (pos != 0xfffffffful) {
-      *keymatch = tp->mem + pos + 20;
+      *keymatch = (const char*)(tp->mem + pos + 20);
       *matchlen = uint32_unpack(tp->mem + pos + 12);
-      *val = tp->mem + pos + 20 + *matchlen;
+      *val = (const char*)(tp->mem + pos + 20 + *matchlen);
       *vlen = uint32_unpack(tp->mem + pos + 16);
       return 0;
     }

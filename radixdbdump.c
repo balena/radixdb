@@ -26,8 +26,6 @@ int main(int argc, char **argv) {
   struct stat st;
   struct radixdb db;
   int fd;
-  const char *val, *key;
-  uint32_t vlen, klen;
 #ifdef _WIN32
   HANDLE hFile, hMapping;
 #endif

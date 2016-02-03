@@ -17,7 +17,7 @@ mandir=$(prefix)/man
 DESTDIR=
 
 CC = cc
-CFLAGS = -O0 -g
+CFLAGS = -std=c99 -O0 -g -Wall
 CDEFS = -D_FILE_OFFSET_BITS=64
 LD = $(CC)
 LDFLAGS = $(CFLAGS)

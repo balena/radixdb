@@ -12,6 +12,8 @@
 extern "C" {
 #endif
 
+#define RADIXDB_MAX_KEY_LENGTH 0x0ffffffful
+
 struct radixdb {
   unsigned char* mem;  /* used memory */
   uint32_t size;       /* memory size */
@@ -22,17 +24,17 @@ int radixdb_init(struct radixdb* tp);
 void radixdb_free(struct radixdb* tp);
 
 int radixdb_add(struct radixdb* tp,
-                const char *key, uint32_t klen,
-                const char *val, uint32_t vlen);
+                const char *key, size_t klen,
+                const char *val, size_t vlen);
 
 int radixdb_lookup(const struct radixdb* tp,
-                   const char *key, uint32_t klen,
-                   const char **val, uint32_t *vlen);
+                   const char *key, size_t klen,
+                   const char **val, size_t *vlen);
 
 int radixdb_longest_match(const struct radixdb* tp,
-                          const char *key, uint32_t klen,
-                          const char **keymatch, uint32_t *matchlen,
-                          const char **val, uint32_t *vlen);
+                          const char *key, size_t klen,
+                          const char **keymatch, size_t *matchlen,
+                          const char **val, size_t *vlen);
 
 void radixdb_dump2dot(const struct radixdb* tp);
 
