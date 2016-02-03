@@ -72,9 +72,8 @@ The radixdbdump program
 
     $ ./radixdbdump f.radixdb
 
-`radixdbdump` reverses the operation performed by `radixdbdump`, printing back
-the same input passed to `radixdbmk`.  The order of the database records is
-preserved.
+`radixdbdump` reverses the operation performed by `radixdbmk`.  The order of
+the database records is preserved.
 
 
 Have fun!
