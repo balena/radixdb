@@ -89,5 +89,9 @@ $(DNAME).tar.gz: $(DISTFILES)
 	tar cfz $@ $(DNAME)
 	rm -fr $(DNAME)
 
+tests: $(LIB)
+	$(MAKE) -C tests
+
 .PHONY: all clean realclean dist
+.PHONY: tests
 .PHONY: static staticlib
