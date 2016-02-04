@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
 
   radixdb_init(&db);
   while((c = getc(stdin)) == '+') {
-    uint32_t klen, vlen;
+    uint32_t klen, vlen = 0;
     if (getnum(stdin, &klen, &c) < 0 || c != ','
         || getnum(stdin, &vlen, &c) < 0 || c != ':'
         || 0xffffffff - klen < vlen)
