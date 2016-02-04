@@ -1,0 +1,8 @@
+*.o
+*.a
+radixdbmk
+radixdbdump
+radixdbget
+radixdbmatch
+radixdb2dot
+tests/check_insert
