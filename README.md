@@ -76,4 +76,18 @@ The radixdbdump program
 the database records is preserved.
 
 
+The radixdb2dot program
+-----------------------
+
+  $ ./radixdb2dot f.radixdb | dot -Tpng -of.png
+
+`radixdb2dot` dumps the database in a format recognized by the Graphviz `dot`
+tool.  This tool has informational/academic/toy purposes, and doesn't work well
+on very long databases.
+
+Here's a toy example of a real database:
+
+[[https://raw.githubusercontent.com/balena/radixdb/master/example.png]]
+
+
 Have fun!
