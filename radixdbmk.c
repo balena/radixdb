@@ -31,8 +31,8 @@ static int getnum(FILE *f, uint32_t *np, char *nextchar) {
   return i;
 }
 
-static void badinput() {
-  fprintf(stderr, "bad input");
+static void badinput(int line) {
+  fprintf(stderr, "bad input (line %d)\n", line);
   exit(1);
 }
 
@@ -40,6 +40,8 @@ int main(int argc, char **argv) {
   char c;
   char* buf = NULL;
   struct radixdb db;
+  int line = 1;
+  uint32_t i;
 
   radixdb_init(&db);
   while((c = getc(stdin)) == '+') {
@@ -47,14 +49,20 @@ int main(int argc, char **argv) {
     if (getnum(stdin, &klen, &c) < 0 || c != ','
         || getnum(stdin, &vlen, &c) < 0 || c != ':'
         || 0xffffffff - klen < vlen)
-      badinput();
+      badinput(line);
     buf = (char*) realloc(buf, klen + vlen);
     if (fread(buf, 1, klen, stdin) != klen
         || getc(stdin) != '-' || getc(stdin) != '>'
         || fread(buf + klen, 1, vlen, stdin) != vlen
         || getc(stdin) != '\n')
-      badinput();
+      badinput(line);
     radixdb_add(&db, buf, klen, buf + klen, vlen);
+    line += 1;
+    /* Handle cases where the key or the value contain newlines */
+    for (i = 0; i < klen + vlen; i++) {
+      if (buf[i] == '\n')
+        line++;
+    }
   }
   fwrite(db.mem, db.dend, 1, stdout);
   radixdb_free(&db);
