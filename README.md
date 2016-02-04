@@ -89,5 +89,13 @@ Here's a toy example of a real database:
 
 ![Dot output example](https://raw.githubusercontent.com/balena/radixdb/master/example.png)
 
+On each record, you will find:
+* First line:
+  * 1st field: byte length
+  * 2nd field: bit length (as in crit-bit-trees)
+  * 3rd field: key -> value
+* Second line:
+  * Left and right pointers
+
 
 Have fun!
