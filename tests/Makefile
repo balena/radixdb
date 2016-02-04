@@ -5,14 +5,14 @@ LD = $(CC)
 
 UNAME := $(shell uname)
 ifeq ($(UNAME), Linux)
-LDFLAGS = $(CFLAGS) -pthread -lm -lrt
+LDFLAGS = -pthread -lm -lrt
 endif
 ifeq ($(UNAME),Darwin)
-LDFLAGS = $(CFLAGS) -lm
+LDFLAGS = -lm
 endif
 
 check_insert: check_insert.o
-	$(LD) $(LDFLAGS) -o $@ check_insert.o ../libradixdb.a -lcheck
+	$(LD) $(CFLAGS) -o $@ check_insert.o ../libradixdb.a -lcheck $(LDFLAGS)
 
 .c.o:
 	$(CC) $(CFLAGS) $(CDEFS) -c $<
