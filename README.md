@@ -97,5 +97,8 @@ On each record, you will find:
 * Second line:
   * Left and right pointers
 
+Note the format above is not how the code has been implemented (especially the
+'byte' and 'bit' separation), but a way to ease the visualization.
+
 
 Have fun!
