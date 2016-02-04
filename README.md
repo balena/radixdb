@@ -79,7 +79,7 @@ the database records is preserved.
 The radixdb2dot program
 -----------------------
 
-  $ ./radixdb2dot f.radixdb | dot -Tpng -of.png
+    $ ./radixdb2dot f.radixdb | dot -Tpng -of.png
 
 `radixdb2dot` dumps the database in a format recognized by the Graphviz `dot`
 tool.  This tool has informational/academic/toy purposes, and doesn't work well
