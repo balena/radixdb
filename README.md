@@ -87,7 +87,7 @@ on very long databases.
 
 Here's a toy example of a real database:
 
-[[https://raw.githubusercontent.com/balena/radixdb/master/example.png]]
+!(http://raw.githubusercontent.com/balena/radixdb/master/example.png)
 
 
 Have fun!
