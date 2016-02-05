@@ -77,9 +77,8 @@ radixdb2dot.o: radixdb.h
 $(LIB_OBJS): radixdb.h
 
 clean:
-	-rm -f *.o core *~ tests.out tests-shared.ok
-realclean distclean:
 	-rm -f *.o core *~ $(LIBBASE)[._][aps]* radixdbmk radixdbget radixdbmatch radixdbdump radixdb2dot
+	$(MAKE) -C tests clean
 
 DNAME = radixdb-$(VERSION)
 dist: $(DNAME).tar.gz
