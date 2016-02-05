@@ -35,41 +35,37 @@ get_bit(uint32_t b, const char *key, uint32_t klen) {
   return key[index] & (1 << (7 - (b & 7)));
 }
 
-static int
-diff_bit(const unsigned char* a, uint32_t alen,
-         const unsigned char* b, uint32_t blen) {
-  unsigned char c1, c2, mask;
-  uint32_t i, todo = alen > blen ? alen : blen;
+static uint8_t
+leftmost_bit(uint8_t v) {
+  static uint8_t debruijn[8] = {7, 2, 6, 1, 3, 4, 5, 0};
+  v |= v >> 1;
+  v |= v >> 2;
+  v |= v >> 4;
+  return debruijn[(uint8_t)(0x1du * v) >> 5];
+}
 
-  /* Consider padding zeroes after the end of input strings. */ 
-  for (i = 0; i < todo; i++) {
-    c1 = (i < alen) ? a[i] : 0;
-    c2 = (i < blen) ? b[i] : 0;
-    if (c1 != c2)
-      break;
+static int
+diff_bit(const unsigned char* key, uint32_t klen,
+         const unsigned char* prefix, uint32_t prefixlen) {
+  int r = 0;
+  unsigned char u1, u2 = 0;
+
+  /* Compare bytes first, until diff byte */ 
+  for (; klen-- && prefixlen--; key++, prefix++, r++) {
+    u1 = *key;
+    u2 = *prefix;
+    if (u1 != u2) {
+      return (r << 3) + leftmost_bit(~(~u1 ^ u2));
+    }
   }
 
-  if (i == blen)
-    return i << 3;
-  if (i == alen && alen == blen)
-    return -1;  /* same entry */
-
-  i <<= 3;
-  mask = ~(~c1 ^ c2);
-
-  /* Binary search on the diff bit. Three comparisons for any mask. */
-  if (mask & 0xf0) {
-    if (mask & 0xc0) {
-      return (mask & 0x80) ? i : i + 1;
-    } else {
-      return (mask & 0x20) ? i + 2 : i + 3;
-    }
+  if (klen == 0 && prefixlen == 0) {
+    return -1;  /* Same entry */
+  } else if (prefixlen == 0) {
+    return r << 3;  /* Prefix is smaller than key */
   } else {
-    if (mask & 0x0c) {
-      return (mask & 0x08) ? i + 4 : i + 5;
-    } else {
-      return (mask & 0x02) ? i + 6 : i + 7;
-    }
+    /* Prefix is larger than key */
+    return (r << 3) + leftmost_bit(u2);
   }
 }
 
@@ -154,23 +150,18 @@ search_node(const struct radixdb *tp, const char *key, uint32_t klen) {
 }
 
 static uint32_t
-find_prefix(const char *a, uint32_t alen, const char *b, uint32_t blen) {
-  unsigned char c1, c2;
-  uint32_t i, todo = alen < blen ? alen : blen;
+find_prefix(const char *a, uint32_t alen, const unsigned char *b, uint32_t blen) {
+  uint32_t r = 0;
+  unsigned char u1, u2;
 
-  for (i = 0; i < todo; i++) {
-    c1 = (unsigned char)a[i];
-    c2 = (unsigned char)b[i];
-    if (c1 != c2)
+  for (; alen-- && blen--; a++, b++, r++) {
+    u1 = *(unsigned char*)a;
+    u2 = *b;
+    if (u1 != u2)
       break;
   }
 
-#if 0
-  printf("prefix(%.*s, %.*s) -> %.*s\n",
-      (int)alen, a, (int)blen, b,
-      (int)i, b);
-#endif
-  return i;
+  return r;
 }
 
 static uint32_t
@@ -180,16 +171,15 @@ search_largest_prefix_inner(const struct radixdb *tp,
   uint32_t nextpos, poskeylen = uint32_unpack(tp->mem + pos + 12);
   uint32_t nextmatch, b1 = uint32_unpack(tp->mem + pos);
   if (b1 <= b0) {
-    *max_length = find_prefix(key, klen,
-        (const char*)(tp->mem + pos + 20), poskeylen);
+    *max_length = find_prefix(key, klen, tp->mem + pos + 20, poskeylen);
     return (*max_length == poskeylen) ? pos : 0xfffffffful;
   }
   nextpos = uint32_unpack(tp->mem + pos + (get_bit(b1, key, klen) ? 8 : 4));
-  nextmatch = search_largest_prefix_inner(tp, key, klen, nextpos, b1, max_length);
+  nextmatch = search_largest_prefix_inner(tp, key, klen, nextpos, b1,
+      max_length);
   if (nextmatch == 0xfffffffful
       && poskeylen <= *max_length) {
-    *max_length = find_prefix(key, *max_length,
-        (const char*)(tp->mem + pos + 20), poskeylen);
+    *max_length = find_prefix(key, *max_length, tp->mem + pos + 20, poskeylen);
     if (*max_length == poskeylen)
       return pos;
   }
