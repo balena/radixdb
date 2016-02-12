@@ -552,14 +552,6 @@ int main() {
   int number_failed;
   Suite *s;
   SRunner *sr;
-  struct radixdb db;
-
-  radixdb_init(&db);
-
-  radixdb_add(&db, "a", 1, "b", 1);
-  radixdb_add(&db, "a", 1, "c", 1);
-
-  radixdb_free(&db);
 
   s = radixdb_suite();
   sr = srunner_create(s);
