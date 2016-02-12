@@ -327,3 +327,19 @@ void radixdb_dump(const struct radixdb* tp) {
   }
   printf("\n");
 }
+
+int radixdb_iter_next(const struct radixdb* tp,
+                      uint32_t *iterator,
+                      const char **key, size_t *klen,
+                      const char **val, size_t *vlen) {
+  if (*iterator < tp->dend) {
+    *klen = uint32_unpack(tp->mem + *iterator + 12);
+    *vlen = uint32_unpack(tp->mem + *iterator + 16);
+    *key = (const char*)(tp->mem + *iterator + 20);
+    *val = (const char*)(tp->mem + *iterator + 20 + *klen);
+    *iterator += 4 + 8 + 8 + *klen + *vlen;
+    return 0;
+  }
+  errno = ENOENT;
+  return -1;
+}

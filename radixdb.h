@@ -40,6 +40,14 @@ void radixdb_dump2dot(const struct radixdb* tp);
 
 void radixdb_dump(const struct radixdb* tp);
 
+/* Simple sata iterator. Returns key-values in the order they were added. The
+ * iterator parameter must be initialized with 4.
+ */
+int radixdb_iter_next(const struct radixdb* tp,
+                      uint32_t *iterator,
+                      const char **key, size_t *klen,
+                      const char **val, size_t *vlen);
+
 #ifdef __cplusplus
 }
 #endif
