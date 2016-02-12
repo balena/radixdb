@@ -29,7 +29,7 @@ uint32_unpack(const unsigned char *buf) {
 
 static int
 get_bit(uint32_t b, const char *key, uint32_t klen) {
-  int index = b >> 3;
+  size_t index = b >> 3;
   if (index >= klen)
     return 0;
   return key[index] & (1 << (7 - (b & 7)));
