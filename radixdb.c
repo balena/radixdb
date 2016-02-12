@@ -50,13 +50,16 @@ diff_bit(const unsigned char* key, uint32_t klen,
   int r = 0;
   unsigned char u1, u2 = 0;
 
-  /* Compare bytes first, until diff byte */ 
-  for (; klen-- && prefixlen--; key++, prefix++, r++) {
+  /* Compare bytes */ 
+  for (; klen && prefixlen; key++, prefix++, r++) {
     u1 = *key;
     u2 = *prefix;
     if (u1 != u2) {
+      /* Found a diff byte, return index */
       return (r << 3) + leftmost_bit(~(~u1 ^ u2));
     }
+    klen--;
+    prefixlen--;
   }
 
   if (klen == 0 && prefixlen == 0) {

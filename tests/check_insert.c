@@ -519,6 +519,18 @@ START_TEST(test_insert_then_get) {
   radixdb_free(&db);
 } END_TEST
 
+START_TEST(test_insert_duplicate_key) {
+  struct radixdb db;
+
+  radixdb_init(&db);
+
+  ck_assert_int_eq(radixdb_add(&db, "a", 1, "b", 1), 0);
+  ck_assert_int_eq(radixdb_add(&db, "a", 1, "c", 1), -1);
+
+  radixdb_free(&db);
+} END_TEST
+
+
 static Suite *
 radixdb_suite() {
   Suite *s;
@@ -530,6 +542,7 @@ radixdb_suite() {
   tc_core = tcase_create("Core");
 
   tcase_add_test(tc_core, test_insert_then_get);
+  tcase_add_test(tc_core, test_insert_duplicate_key);
   suite_add_tcase(s, tc_core);
 
   return s;
@@ -539,6 +552,14 @@ int main() {
   int number_failed;
   Suite *s;
   SRunner *sr;
+  struct radixdb db;
+
+  radixdb_init(&db);
+
+  radixdb_add(&db, "a", 1, "b", 1);
+  radixdb_add(&db, "a", 1, "c", 1);
+
+  radixdb_free(&db);
 
   s = radixdb_suite();
   sr = srunner_create(s);
