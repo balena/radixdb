@@ -1,26 +1,37 @@
 radixdb
 =======
 
-This library provides a C99 implementation of the Patricia Trie.  The algorithm
-follows the 3 control words (32-bit) overhead -- length (diff bit) and
-left/right indexes to next nodes -- plus length of the key and value. There's
-no external nodes, so data is located at a node where the parent bit is equal
-or greater than the node bit.  The overhead for each key-value pair is exactly
-20 bytes (5 words of 32-bits).
+This library provides a C99 implementation of the PATRICIA Trie for NUL
+terminated strings.  Each node store a bit position and two children.  The
+position is the next bit location in which two members differ.  For a given set
+of elements there is an unique tree that satisfies the given conditions, so the
+structure does not need complex balancing algorithms.  The depth tree is
+bounded by the length of the longest element, rather than the number of
+elements (as with an unbalanced tree).  This implementation does not use
+external nodes, so data is found, while traversing the tree, at a node where
+the parent node has a bit position which is equal or greater than the node bit
+position.
+
+The implementation uses 3 control words of 32-bit each (bit position then left
+and right children), followed by the key length and the value length in bytes
+also in 32-bit words, then the key and the value. With this configuration the
+overhead of each key-value pair added to the tree is 20 bytes (5 words of
+32-bits).
 
 It provides the following:
  * O(k) operations. In some cases, this can be faster than a hash table.
  * Optimized largest prefix match operation.
 
-This implementation does not support deletion, as it's intended for big
-read-only databases.
+This implementation does not support deletion, as it was conceived for usage in
+large read-only databases.
 
 Build
 -----
 
     $ make
 
-This will generate three binary files: radixdbmk, radixdbget and radixdbmatch.
+This will generate five binary files: radixdbmk, radixdbget, radixdbmatch,
+radixdbdump and radixdb2dot.
 
 The radixdbmk program
 ---------------------
@@ -82,8 +93,8 @@ The radixdb2dot program
     $ ./radixdb2dot f.radixdb | dot -Tpng -of.png
 
 `radixdb2dot` dumps the database in a format recognized by the Graphviz `dot`
-tool.  This tool has informational/academic/toy purposes, and doesn't work well
-on very long databases.
+tool.  This tool has informational/academic/toy purposes, and does not perform
+well on very long databases.
 
 Here's a toy example of a real database:
 
@@ -91,14 +102,16 @@ Here's a toy example of a real database:
 
 On each record, you will find:
 * First line:
-  * 1st field: byte length
-  * 2nd field: bit length (as in crit-bit-trees)
+  * 1st field: bit position, byte index
+  * 2nd field: bit position, bit index
   * 3rd field: key -> value
 * Second line:
   * Left and right pointers
 
-Note the format above is not how the code has been implemented (especially the
-'byte' and 'bit' separation), but a way to ease the visualization.
+Note the format above is not how the code has been implemented internally, but
+a way to ease the visualization.  Particularly, the 1st and 2nd field
+represented in each record are stored as a single 32-bit integer
+(`byte index * 8 + bit index`).
 
 
 Have fun!
