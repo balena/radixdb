@@ -212,6 +212,26 @@ void radixdb_free(struct radixdb* tp) {
   free(tp->mem);
 }
 
+int radixdb_check(struct radixdb* tp) {
+  uint32_t pos = 4, bit, left, right, klen, vlen;
+  while (pos < tp->dend) {
+    bit = uint32_unpack(tp->mem + pos);
+    left = uint32_unpack(tp->mem + pos + 4);
+    right = uint32_unpack(tp->mem + pos + 8);
+    klen = uint32_unpack(tp->mem + pos + 12);
+    vlen = uint32_unpack(tp->mem + pos + 16);
+    if (((bit - 1) >> 3) >= klen
+        || left >= tp->dend
+        || right >= tp->dend
+        || pos + 4 + 8 + 8 + klen + vlen > tp->dend) {
+      errno = EINVAL;
+      return -1;
+    }
+    pos += 4 + 8 + 8 + klen + vlen;
+  }
+  return 0;
+}
+
 int radixdb_add(struct radixdb* tp,
                 const char *key, size_t klen,
                 const char *val, size_t vlen) {

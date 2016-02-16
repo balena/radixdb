@@ -77,7 +77,10 @@ int main(int argc, char **argv) {
 
   db.size = 0;  /* file is read-only */
 
-  radixdb_dump(&db);
+  if (radixdb_check(&db) == 0)
+    radixdb_dump(&db);
+  else
+    fprintf(stderr, "Invalid db");
 
 #ifdef _WIN32
   UnmapViewOfFile((void*) db.mem);

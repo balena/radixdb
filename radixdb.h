@@ -23,6 +23,11 @@ struct radixdb {
 int radixdb_init(struct radixdb* tp);
 void radixdb_free(struct radixdb* tp);
 
+/* Check if the RadixDB structure is valid (i.e. if the loaded database is not
+ * corrupted). This is a O(n) operation.
+ */
+int radixdb_check(struct radixdb* tp);
+
 int radixdb_add(struct radixdb* tp,
                 const char *key, size_t klen,
                 const char *val, size_t vlen);
