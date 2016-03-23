@@ -513,7 +513,7 @@ START_TEST(test_insert_then_get) {
     ck_assert_int_eq(radixdb_longest_match(&db, key, klen,
         &keymatch, &matchlen, &val, &vlen), 0);
     ck_assert_int_eq(vlen, klen);
-    ck_assert(memcmp(key, val, klen) == 0);
+    ck_assert_int_eq(memcmp(key, val, klen), 0);
   }
 
   radixdb_free(&db);
@@ -530,6 +530,39 @@ START_TEST(test_insert_duplicate_key) {
   radixdb_free(&db);
 } END_TEST
 
+START_TEST(test_longest_match) {
+  struct radixdb db;
+  const char *keymatch, *val;
+  size_t matchlen, vlen;
+
+  radixdb_init(&db);
+
+  radixdb_add(&db, "123", 3, "a", 1);
+  radixdb_add(&db, "1234", 4, "b", 1);
+
+  ck_assert_int_eq(radixdb_longest_match(&db, "12345", 5,
+      &keymatch, &matchlen, &val, &vlen), 0);
+  ck_assert_int_eq(matchlen, 4);
+  ck_assert_int_eq(memcmp("1234", keymatch, 4), 0);
+  ck_assert_int_eq(vlen, 1);
+  ck_assert_int_eq(memcmp("b", val, 1), 0);
+
+  radixdb_free(&db);
+
+  radixdb_init(&db);
+
+  radixdb_add(&db, "1234", 4, "b", 1);
+  radixdb_add(&db, "123", 3, "a", 1);
+
+  ck_assert_int_eq(radixdb_longest_match(&db, "12345", 5,
+      &keymatch, &matchlen, &val, &vlen), 0);
+  ck_assert_int_eq(matchlen, 4);
+  ck_assert_int_eq(memcmp("1234", keymatch, 4), 0);
+  ck_assert_int_eq(vlen, 1);
+  ck_assert_int_eq(memcmp("b", val, 1), 0);
+
+  radixdb_free(&db);
+} END_TEST
 
 static Suite *
 radixdb_suite() {
@@ -543,6 +576,7 @@ radixdb_suite() {
 
   tcase_add_test(tc_core, test_insert_then_get);
   tcase_add_test(tc_core, test_insert_duplicate_key);
+  tcase_add_test(tc_core, test_longest_match);
   suite_add_tcase(s, tc_core);
 
   return s;
