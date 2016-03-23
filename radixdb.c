@@ -325,6 +325,8 @@ void radixdb_dump2dot(const struct radixdb* tp) {
   uint32_t pos = 4, bit, left, right, klen, vlen;
   printf("digraph G {\n");
   printf("  node [shape=record];\n");
+  printf("  root -> n%lu;\n",
+      (unsigned long)uint32_unpack(tp->mem));
   while (pos < tp->dend) {
     bit = uint32_unpack(tp->mem + pos);
     left = uint32_unpack(tp->mem + pos + 4);
