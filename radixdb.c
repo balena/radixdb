@@ -44,6 +44,18 @@ leftmost_bit(uint8_t v) {
   return debruijn[(uint8_t)(0x1du * v) >> 5];
 }
 
+static uint8_t
+rightmost_bit(uint8_t v) {
+  uint8_t i = 0;
+  while ((v & 1) == 0 && i < 8) {
+    v >>= 1;
+    i++;
+  }
+  if (i == 8)
+    return 7;
+  return 7 - i;
+}
+
 static int
 diff_bit(const unsigned char* key, uint32_t klen,
          const unsigned char* prefix, uint32_t prefixlen) {
@@ -125,13 +137,14 @@ insert_between(struct radixdb* tp, const char *key, uint32_t klen,
     uint32_t n, int diff) {
   uint32_t pos = uint32_unpack(tp->mem);
   uint32_t b0 = uint32_unpack(tp->mem + pos);
-  unsigned char *tmp;
+  unsigned char *tmp = tp->mem + pos + (get_bit(b0, key, klen) ? 8 : 4);
   if (diff < (int)b0) {
-    uint32_pack(tp->mem + n + (get_bit(diff, key, klen) ? 4 : 8), pos);
-    return n;
+    uint32_pack(tp->mem + n + (get_bit(diff, key, klen) ? 8 : 4),
+        uint32_unpack(tmp));
+    pos = n;
+  } else {
+    n = insert_between_inner(tp, key, klen, uint32_unpack(tmp), n, b0, diff);
   }
-  tmp = tp->mem + pos + (get_bit(b0, key, klen) ? 8 : 4);
-  n = insert_between_inner(tp, key, klen, uint32_unpack(tmp), n, b0, diff);
   uint32_pack(tmp, n);
   return pos;
 }
@@ -253,7 +266,7 @@ int radixdb_add(struct radixdb* tp,
 
   /* copy the key and value to the new node */
   n = tp->dend;
-  uint32_pack(tp->mem + n, klen << 3);
+  uint32_pack(tp->mem + n, ((klen - 1) << 3) + rightmost_bit(key[klen-1]));
   uint32_pack(tp->mem + n + 4, tp->dend);
   uint32_pack(tp->mem + n + 8, tp->dend);
   uint32_pack(tp->mem + n + 12, klen);
