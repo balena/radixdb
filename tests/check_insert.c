@@ -530,7 +530,27 @@ START_TEST(test_insert_duplicate_key) {
   radixdb_free(&db);
 } END_TEST
 
-START_TEST(test_longest_match) {
+START_TEST(test_match_first_node) {
+  struct radixdb db;
+  const char *keymatch, *val;
+  size_t matchlen, vlen;
+
+  radixdb_init(&db);
+
+  radixdb_add(&db, "123", 3, "a", 1);
+  radixdb_add(&db, "1234", 4, "b", 1);
+
+  ck_assert_int_eq(radixdb_longest_match(&db, "1230", 4,
+      &keymatch, &matchlen, &val, &vlen), 0);
+  ck_assert_int_eq(matchlen, 3);
+  ck_assert_int_eq(memcmp("123", keymatch, 3), 0);
+  ck_assert_int_eq(vlen, 1);
+  ck_assert_int_eq(memcmp("a", val, 1), 0);
+
+  radixdb_free(&db);
+} END_TEST
+
+START_TEST(test_longest_match_ordered) {
   struct radixdb db;
   const char *keymatch, *val;
   size_t matchlen, vlen;
@@ -548,6 +568,12 @@ START_TEST(test_longest_match) {
   ck_assert_int_eq(memcmp("b", val, 1), 0);
 
   radixdb_free(&db);
+} END_TEST
+
+START_TEST(test_longest_match_reverse) {
+  struct radixdb db;
+  const char *keymatch, *val;
+  size_t matchlen, vlen;
 
   radixdb_init(&db);
 
@@ -576,7 +602,9 @@ radixdb_suite() {
 
   tcase_add_test(tc_core, test_insert_then_get);
   tcase_add_test(tc_core, test_insert_duplicate_key);
-  tcase_add_test(tc_core, test_longest_match);
+  tcase_add_test(tc_core, test_match_first_node);
+  tcase_add_test(tc_core, test_longest_match_ordered);
+  tcase_add_test(tc_core, test_longest_match_reverse);
   suite_add_tcase(s, tc_core);
 
   return s;

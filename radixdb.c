@@ -193,10 +193,19 @@ static uint32_t
 search_largest_prefix(const struct radixdb *tp,
     const char *key, uint32_t klen) {
   uint32_t max_length;
-  uint32_t pos = uint32_unpack(tp->mem);
+  uint32_t pos = uint32_unpack(tp->mem), nextpos;
   uint32_t b0 = uint32_unpack(tp->mem + pos);
-  pos = uint32_unpack(tp->mem + pos + (get_bit(b0, key, klen) ? 8 : 4));
-  return search_largest_prefix_inner(tp, key, klen, pos, b0, &max_length);
+  uint32_t poskeylen = uint32_unpack(tp->mem + pos + 12);
+  uint32_t nextmatch;
+  nextpos = uint32_unpack(tp->mem + pos + (get_bit(b0, key, klen) ? 8 : 4));
+  nextmatch = search_largest_prefix_inner(tp, key, klen, nextpos, b0, &max_length);
+  if (nextmatch == 0xfffffffful
+      && poskeylen <= max_length) {
+    max_length = find_prefix(key, max_length, tp->mem + pos + 20, poskeylen);
+    if (max_length == poskeylen)
+      return pos;
+  }
+  return nextmatch;
 }
 
 int radixdb_init(struct radixdb* tp) {
