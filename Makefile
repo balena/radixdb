@@ -33,7 +33,7 @@ INSTALLPROG = radixdb
 
 CP = cp
 
-LIB_SRCS = radixdb.c
+LIB_SRCS = radixdb.c radixdb_make.c
 
 DISTFILES = Makefile radixdb.h $(LIB_SRCS)
 all: static
@@ -48,19 +48,19 @@ $(LIB): $(LIB_OBJS)
 	-$(RANLIB) $@
 
 radixdbmk: radixdbmk.o $(USELIB)
-	$(LD) $(LDFLAGS) -o $@ radixdbmk.o $(USELIB)
+	$(LD) $(LDFLAGS) -o $@ $^
 
-radixdbget: radixdbget.o $(USELIB)
-	$(LD) $(LDFLAGS) -o $@ radixdbget.o $(USELIB)
+radixdbget: radixdbget.o radixdb_util.o $(USELIB)
+	$(LD) $(LDFLAGS) -o $@ $^
 
-radixdbmatch: radixdbmatch.o $(USELIB)
-	$(LD) $(LDFLAGS) -o $@ radixdbmatch.o $(USELIB)
+radixdbmatch: radixdbmatch.o radixdb_util.o $(USELIB)
+	$(LD) $(LDFLAGS) -o $@ $^
 
-radixdbdump: radixdbdump.o $(USELIB)
-	$(LD) $(LDFLAGS) -o $@ radixdbdump.o $(USELIB)
+radixdbdump: radixdbdump.o radixdb_util.o $(USELIB)
+	$(LD) $(LDFLAGS) -o $@ $^
 
-radixdb2dot: radixdb2dot.o $(USELIB)
-	$(LD) $(LDFLAGS) -o $@ radixdb2dot.o $(USELIB)
+radixdb2dot: radixdb2dot.o radixdb_util.o $(USELIB)
+	$(LD) $(LDFLAGS) -o $@ $^
 
 .SUFFIXES:
 .SUFFIXES: .c .o .lo

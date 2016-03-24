@@ -485,17 +485,36 @@ static const char *test_keys[] = {
   "idutcygDo",
 };
 
+START_TEST(test_single_entry) {
+  struct radixdb db;
+  struct radixdb_make db_make;
+  const char *keymatch, *val;
+  size_t matchlen, vlen;
+  const char *key = "wheshivGowghisheex)";
+
+  radixdb_make_start(&db_make);
+  ck_assert_int_eq(radixdb_make_add(&db_make, key, strlen(key), key, strlen(key)), 0);
+  radixdb_make_finish(&db_make, &db);
+
+  ck_assert_int_eq(radixdb_lookup(&db, key, strlen(key), &val, &vlen), 0);
+  ck_assert_int_eq(radixdb_longest_match(&db, key, strlen(key),
+      &keymatch, &matchlen, &val, &vlen), 0);
+
+  radixdb_free(&db);
+} END_TEST
+
 START_TEST(test_insert_then_get) {
   size_t i;
   struct radixdb db;
+  struct radixdb_make db_make;
 
-  radixdb_init(&db);
-
+  radixdb_make_start(&db_make);
   for (i = 0; i < sizeof(test_keys) / sizeof(test_keys[0]); i++) {
     const char *key = test_keys[i];
     size_t klen = strlen(key);
-    ck_assert_int_eq(radixdb_add(&db, key, klen, key, klen), 0);
+    ck_assert_int_eq(radixdb_make_add(&db_make, key, klen, key, klen), 0);
   }
+  radixdb_make_finish(&db_make, &db);
 
   for (i = 0; i < sizeof(test_keys) / sizeof(test_keys[0]); i++) {
     /* All entered keys should be there */
@@ -521,24 +540,26 @@ START_TEST(test_insert_then_get) {
 
 START_TEST(test_insert_duplicate_key) {
   struct radixdb db;
+  struct radixdb_make db_make;
 
-  radixdb_init(&db);
-
-  ck_assert_int_eq(radixdb_add(&db, "a", 1, "b", 1), 0);
-  ck_assert_int_eq(radixdb_add(&db, "a", 1, "c", 1), -1);
+  radixdb_make_start(&db_make);
+  ck_assert_int_eq(radixdb_make_add(&db_make, "a", 1, "b", 1), 0);
+  ck_assert_int_eq(radixdb_make_add(&db_make, "a", 1, "c", 1), -1);
+  radixdb_make_finish(&db_make, &db);
 
   radixdb_free(&db);
 } END_TEST
 
 START_TEST(test_match_first_node) {
   struct radixdb db;
+  struct radixdb_make db_make;
   const char *keymatch, *val;
   size_t matchlen, vlen;
 
-  radixdb_init(&db);
-
-  radixdb_add(&db, "123", 3, "a", 1);
-  radixdb_add(&db, "1234", 4, "b", 1);
+  radixdb_make_start(&db_make);
+  radixdb_make_add(&db_make, "123", 3, "a", 1);
+  radixdb_make_add(&db_make, "1234", 4, "b", 1);
+  radixdb_make_finish(&db_make, &db);
 
   ck_assert_int_eq(radixdb_longest_match(&db, "1230", 4,
       &keymatch, &matchlen, &val, &vlen), 0);
@@ -552,13 +573,14 @@ START_TEST(test_match_first_node) {
 
 START_TEST(test_longest_match_ordered) {
   struct radixdb db;
+  struct radixdb_make db_make;
   const char *keymatch, *val;
   size_t matchlen, vlen;
 
-  radixdb_init(&db);
-
-  radixdb_add(&db, "123", 3, "a", 1);
-  radixdb_add(&db, "1234", 4, "b", 1);
+  radixdb_make_start(&db_make);
+  radixdb_make_add(&db_make, "123", 3, "a", 1);
+  radixdb_make_add(&db_make, "1234", 4, "b", 1);
+  radixdb_make_finish(&db_make, &db);
 
   ck_assert_int_eq(radixdb_longest_match(&db, "12345", 5,
       &keymatch, &matchlen, &val, &vlen), 0);
@@ -572,13 +594,14 @@ START_TEST(test_longest_match_ordered) {
 
 START_TEST(test_longest_match_reverse) {
   struct radixdb db;
+  struct radixdb_make db_make;
   const char *keymatch, *val;
   size_t matchlen, vlen;
 
-  radixdb_init(&db);
-
-  radixdb_add(&db, "1234", 4, "b", 1);
-  radixdb_add(&db, "123", 3, "a", 1);
+  radixdb_make_start(&db_make);
+  radixdb_make_add(&db_make, "1234", 4, "b", 1);
+  radixdb_make_add(&db_make, "123", 3, "a", 1);
+  radixdb_make_finish(&db_make, &db);
 
   ck_assert_int_eq(radixdb_longest_match(&db, "12345", 5,
       &keymatch, &matchlen, &val, &vlen), 0);
@@ -600,6 +623,7 @@ radixdb_suite() {
   /* Core test case */
   tc_core = tcase_create("Core");
 
+  tcase_add_test(tc_core, test_single_entry);
   tcase_add_test(tc_core, test_insert_then_get);
   tcase_add_test(tc_core, test_insert_duplicate_key);
   tcase_add_test(tc_core, test_match_first_node);

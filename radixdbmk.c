@@ -40,10 +40,11 @@ int main(int argc, char **argv) {
   char c;
   char* buf = NULL;
   struct radixdb db;
+  struct radixdb_make db_make;
   int line = 1;
   uint32_t i;
 
-  radixdb_init(&db);
+  radixdb_make_start(&db_make);
   while((c = getc(stdin)) == '+') {
     uint32_t klen, vlen = 0;
     if (getnum(stdin, &klen, &c) < 0 || c != ','
@@ -56,7 +57,10 @@ int main(int argc, char **argv) {
         || fread(buf + klen, 1, vlen, stdin) != vlen
         || getc(stdin) != '\n')
       badinput(line);
-    radixdb_add(&db, buf, klen, buf + klen, vlen);
+    if (radixdb_make_add(&db_make, buf, klen, buf + klen, vlen) != 0) {
+      fprintf(stderr, "found duplicated keys\n");
+      badinput(line);
+    }
     line += 1;
     /* Handle cases where the key or the value contain newlines */
     for (i = 0; i < klen + vlen; i++) {
@@ -64,6 +68,7 @@ int main(int argc, char **argv) {
         line++;
     }
   }
+  radixdb_make_finish(&db_make, &db);
   fwrite(db.mem, db.dend, 1, stdout);
   radixdb_free(&db);
 
