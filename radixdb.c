@@ -151,15 +151,16 @@ insert_between(struct radixdb* tp, const char *key, uint32_t klen,
 
 static uint32_t
 search_node(const struct radixdb *tp, const char *key, uint32_t klen) {
-  uint32_t pos, b0, b1;
+  uint32_t pos, nextpos, b0, b1, poskeylen;
   pos = uint32_unpack(tp->mem);
   b0 = uint32_unpack(tp->mem + pos);
-  pos = uint32_unpack(tp->mem + pos + (get_bit(b0, key, klen) ? 8 : 4));
+  nextpos = uint32_unpack(tp->mem + pos + (get_bit(b0, key, klen) ? 8 : 4));
   for (;;) {
-    b1 = uint32_unpack(tp->mem + pos);
-    if (b1 <= b0)
+    b1 = uint32_unpack(tp->mem + nextpos);
+    if (b1 <= b0 || b1 > (klen << 3))
       break;
-    pos = uint32_unpack(tp->mem + pos + (get_bit(b1, key, klen) ? 8 : 4));
+    pos = nextpos;
+    nextpos = uint32_unpack(tp->mem + pos + (get_bit(b1, key, klen) ? 8 : 4));
     b0 = b1;
   }
   return pos;
@@ -186,10 +187,8 @@ search_largest_prefix_inner(const struct radixdb *tp,
     uint32_t *max_length) {
   uint32_t nextpos, poskeylen = uint32_unpack(tp->mem + pos + 12);
   uint32_t nextmatch, b1 = uint32_unpack(tp->mem + pos);
-  if (b1 <= b0) {
-    *max_length = find_prefix(key, klen, tp->mem + pos + 20, poskeylen);
-    return (*max_length == poskeylen) ? pos : 0xfffffffful;
-  }
+  if (b1 <= b0 || b1 > (klen << 3))
+    return 0xfffffffful;
   nextpos = uint32_unpack(tp->mem + pos + (get_bit(b1, key, klen) ? 8 : 4));
   nextmatch = search_largest_prefix_inner(tp, key, klen, nextpos, b1,
       max_length);
@@ -205,7 +204,7 @@ search_largest_prefix_inner(const struct radixdb *tp,
 static uint32_t
 search_largest_prefix(const struct radixdb *tp,
     const char *key, uint32_t klen) {
-  uint32_t max_length;
+  uint32_t max_length = 0xfffffffful;
   uint32_t pos = uint32_unpack(tp->mem), nextpos;
   uint32_t b0 = uint32_unpack(tp->mem + pos);
   uint32_t poskeylen = uint32_unpack(tp->mem + pos + 12);
@@ -266,7 +265,7 @@ int radixdb_add(struct radixdb* tp,
 
   /* copy the key and value to the new node */
   n = tp->dend;
-  uint32_pack(tp->mem + n, ((klen - 1) << 3) + rightmost_bit(key[klen-1]));
+  uint32_pack(tp->mem + n, klen << 3);
   uint32_pack(tp->mem + n + 4, tp->dend);
   uint32_pack(tp->mem + n + 8, tp->dend);
   uint32_pack(tp->mem + n + 12, klen);
