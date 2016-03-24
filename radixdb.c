@@ -29,7 +29,8 @@ get_bit(uint32_t b, const char *key, uint32_t klen) {
 
 static uint32_t
 prefix(const char* x, uint32_t n, const char* key, uint32_t m) {
-  for (uint32_t k = 0; k < n; k++)
+  uint32_t k;
+  for (k = 0; k < n; k++)
     if (k == m || x[k] != key[k])
       return k;
   return n;
