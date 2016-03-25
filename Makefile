@@ -37,7 +37,7 @@ LIB_SRCS = radixdb.c radixdb_make.c
 
 DISTFILES = Makefile radixdb.h $(LIB_SRCS)
 all: static
-static: staticlib radixdbmk radixdbget radixdbmatch radixdbdump radixdb2dot
+static: staticlib radixdbmk radixdbget radixdbmatch radixdbdump radixdb2dot radixdbstats
 staticlib: $(LIB)
 
 LIB_OBJS = $(LIB_SRCS:.c=.o)
@@ -62,6 +62,9 @@ radixdbdump: radixdbdump.o radixdb_util.o $(USELIB)
 radixdb2dot: radixdb2dot.o radixdb_util.o $(USELIB)
 	$(LD) $(LDFLAGS) -o $@ $^
 
+radixdbstats: radixdbstats.o radixdb_util.o $(USELIB)
+	$(LD) $(LDFLAGS) -o $@ $^
+
 .SUFFIXES:
 .SUFFIXES: .c .o .lo
 
@@ -74,10 +77,11 @@ radixdbget.o: radixdb.h
 radixdbmatch.o: radixdb.h
 radixdbdump.o: radixdb.h
 radixdb2dot.o: radixdb.h
+radixdbstats.o: radixdb.h
 $(LIB_OBJS): radixdb.h
 
 clean:
-	-rm -f *.o core *~ $(LIBBASE)[._][aps]* radixdbmk radixdbget radixdbmatch radixdbdump radixdb2dot
+	-rm -f *.o core *~ $(LIBBASE)[._][aps]* radixdbmk radixdbget radixdbmatch radixdbdump radixdb2dot radixdbstats
 	$(MAKE) -C tests clean
 
 DNAME = radixdb-$(VERSION)

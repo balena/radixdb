@@ -58,8 +58,7 @@ int main(int argc, char **argv) {
         || getc(stdin) != '\n')
       badinput(line);
     if (radixdb_make_add(&db_make, buf, klen, buf + klen, vlen) != 0) {
-      fprintf(stderr, "found duplicated keys\n");
-      badinput(line);
+      fprintf(stderr, "ignored duplicate (line %d)\n", line);
     }
     line += 1;
     /* Handle cases where the key or the value contain newlines */

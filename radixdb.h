@@ -35,10 +35,6 @@ int radixdb_longest_match(const struct radixdb* tp,
                           const char **keymatch, size_t *matchlen,
                           const char **val, size_t *vlen);
 
-void radixdb_dump2dot(const struct radixdb* tp);
-
-void radixdb_dump(const struct radixdb* tp);
-
 /* Simple data iterator. Returns key-values in the order they were added. The
  * iterator parameter must be initialized with 4.
  */

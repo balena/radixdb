@@ -27,15 +27,6 @@ get_bit(uint32_t b, const char *key, uint32_t klen) {
   return key[index] & (1 << (7 - (b & 7)));
 }
 
-static uint32_t
-prefix(const char* x, uint32_t n, const char* key, uint32_t m) {
-  uint32_t k;
-  for (k = 0; k < n; k++)
-    if (k == m || x[k] != key[k])
-      return k;
-  return n;
-}
-
 void radixdb_free(struct radixdb* tp) {
   free(tp->mem);
 }
@@ -69,11 +60,15 @@ int radixdb_lookup(const struct radixdb* tp,
     b0 = uint32_unpack(tp->mem + pos);
     nextpos = uint32_unpack(tp->mem + pos + (get_bit(b0, key, klen) ? 8 : 4));
     for (;;) {
-      if (uint32_unpack(tp->mem + pos + 12) == klen
-          && memcmp(tp->mem + pos + 20, key, klen) == 0) {
-        *val = (const char*)(tp->mem + pos + 20 + klen);
-        *vlen = uint32_unpack(tp->mem + pos + 16);
-        return 0;
+      if (uint32_unpack(tp->mem + pos + 12) == klen) {
+#if 0
+        printf("cmp(\"%.*s\",\"%.*s\")\n", (int)klen, tp->mem + pos + 20, (int)klen, key);
+#endif
+        if (memcmp(tp->mem + pos + 20, key, klen) == 0) {
+          *val = (const char*)(tp->mem + pos + 20 + klen);
+          *vlen = uint32_unpack(tp->mem + pos + 16);
+          return 0;
+        }
       }
       b1 = uint32_unpack(tp->mem + nextpos);
       if (b1 <= b0 || b1 > (klen << 3))
@@ -93,20 +88,28 @@ int radixdb_longest_match(const struct radixdb* tp,
                           const char **keymatch, size_t *matchlen,
                           const char **val, size_t *vlen) {
   if (tp->dend > 4 && klen > 0) {
-    uint32_t pos, nextpos, b0, b1, k, n_klen, best = 0;
+    uint32_t pos, nextpos, b0, b1, n_klen, best = 0;
     pos = uint32_unpack(tp->mem);
     b0 = uint32_unpack(tp->mem + pos);
     nextpos = uint32_unpack(tp->mem + pos + (get_bit(b0, key, klen) ? 8 : 4));
     for (;;) {
       n_klen = uint32_unpack(tp->mem + pos + 12);
-      if (n_klen <= klen) {
-        k = prefix((const char*)(tp->mem + pos + 20), n_klen, key, klen);
-        if (k == n_klen && k > best) {
+      if (n_klen > 0 && n_klen <= klen && n_klen > best) {
+#if 0
+        printf("cmp(\"%.*s\",\"%.*s\")", (int)n_klen, tp->mem + pos + 20, (int)klen, key);
+#endif
+        if (memcmp(key, tp->mem + pos + 20, n_klen) == 0) {
+#if 0
+          printf(" -> best is \"%.*s\"", (int)n_klen, tp->mem + pos + 20);
+#endif
           *keymatch = (const char*)(tp->mem + pos + 20);
           *matchlen = best = uint32_unpack(tp->mem + pos + 12);
           *val = (const char*)(tp->mem + pos + 20 + *matchlen);
           *vlen = uint32_unpack(tp->mem + pos + 16);
         }
+#if 0
+        printf("\n");
+#endif
       }
       b1 = uint32_unpack(tp->mem + nextpos);
       if (b1 <= b0 || b1 > (klen << 3))
@@ -121,64 +124,6 @@ int radixdb_longest_match(const struct radixdb* tp,
 
   errno = ENOENT;
   return -1;
-}
-
-static void
-dot_escape(const char* s, uint32_t len) {
-  while (len > 0) {
-    switch (*s) {
-      case '{': case '}': case '(': case ')': case '<': case '>': case '&':
-        fputc('\\', stdout); fputc(*s, stdout);
-        break;
-      default:
-        fputc(*s, stdout);
-        break;
-    }
-    s++;
-    len--;
-  }
-}
-
-void radixdb_dump2dot(const struct radixdb* tp) {
-  uint32_t pos = 4, bit, left, right, klen, vlen;
-  printf("digraph G {\n");
-  printf("  node [shape=record];\n");
-  printf("  root -> n%lu;\n",
-      (unsigned long)uint32_unpack(tp->mem));
-  while (pos < tp->dend) {
-    bit = uint32_unpack(tp->mem + pos);
-    left = uint32_unpack(tp->mem + pos + 4);
-    right = uint32_unpack(tp->mem + pos + 8);
-    klen = uint32_unpack(tp->mem + pos + 12);
-    vlen = uint32_unpack(tp->mem + pos + 16);
-    printf("  n%lu [label=\"{{%lu|%lu|\\\"",
-        (unsigned long)pos,
-        (unsigned long)(bit>>3), (unsigned long)(bit&7));
-    dot_escape((const char*)(tp->mem + pos + 20), klen);
-    printf("\\\"&rarr;\\\"");
-    dot_escape((const char*)(tp->mem + pos + 20 + klen), vlen);
-    printf("\\\"}|{<l>left|<r>right}}\"];\n");
-    printf("  n%lu:l -> n%lu;\n"
-           "  n%lu:r -> n%lu;\n",
-           (unsigned long)pos, (unsigned long)left,
-           (unsigned long)pos, (unsigned long)right);
-    pos += 4 + 8 + 8 + klen + vlen;
-  }
-  printf("}\n");
-}
-
-void radixdb_dump(const struct radixdb* tp) {
-  uint32_t pos = 4, klen, vlen;
-  while (pos < tp->dend) {
-    klen = uint32_unpack(tp->mem + pos + 12);
-    vlen = uint32_unpack(tp->mem + pos + 16);
-    printf("+%lu,%lu:%.*s->%.*s\n",
-        (unsigned long)klen, (unsigned long)vlen,
-        (int)klen, tp->mem + pos + 20,
-        (int)vlen, tp->mem + pos + 20 + klen);
-    pos += 4 + 8 + 8 + klen + vlen;
-  }
-  printf("\n");
 }
 
 int radixdb_iter_next(const struct radixdb* tp,

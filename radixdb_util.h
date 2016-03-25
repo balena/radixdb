@@ -14,6 +14,13 @@ extern "C" {
 void openfile(const char* filename, struct radixdb* db);
 void closefile(struct radixdb* db);
 
+void radixdb_dump2dot(const struct radixdb* tp);
+
+void radixdb_dump(const struct radixdb* tp);
+
+void radixdb_stats(const struct radixdb* tp);
+
+
 #ifdef __cplusplus
 }
 #endif
