@@ -30,8 +30,8 @@ Build
 
     $ make
 
-This will generate five binary files: radixdbmk, radixdbget, radixdbmatch,
-radixdbdump and radixdb2dot.
+This will generate six binary files: `radixdbmk`, `radixdbget`, `radixdbmatch`,
+`radixdbdump`, `radixdbstats` and `radixdb2dot`.
 
 The radixdbmk program
 ---------------------
