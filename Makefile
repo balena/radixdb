@@ -4,7 +4,7 @@
 # This file is a part of radixdb package by G. B. Versiani, guibv@yahoo.com.
 # Public domain.
 
-VERSION = 0.25
+VERSION = 0.27
 
 prefix=/usr/local
 exec_prefix=$(prefix)
