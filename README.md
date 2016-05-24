@@ -87,6 +87,25 @@ The radixdbdump program
 the database records is preserved.
 
 
+The radixdbstats program
+------------------------
+
+    $ ./radixdbstats f.radixdb
+
+`radixdbstats` shows useful statistics about the database records contained in
+the constant database `f.radixdb`. Example:
+
+    number of records: 11
+    key min/avg/max length: 2/4/4
+    val min/avg/max length: 8/9/9
+    max depth: 4
+    max bit depth: 30
+
+The key and value lengths are given in bytes, whereas the max bit depth is
+given in bits.  In the example above, the created trie can reach any leaf by
+checking a max of 4 bits, up to the 30th bit of the input key.
+
+
 The radixdb2dot program
 -----------------------
 
