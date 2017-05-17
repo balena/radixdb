@@ -127,7 +127,7 @@ The radixdb2dot program
 tool.  This tool has informational/academic/toy purposes, and does not perform
 well on very long databases.
 
-Here's a toy example of a real database:
+Here's a toy example:
 
 ![Dot output example](https://raw.githubusercontent.com/balena/radixdb/master/example.png)
 
