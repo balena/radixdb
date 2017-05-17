@@ -77,6 +77,18 @@ The radixdbmatch program
 `radixdbmatch` searches for the longest prefix available in the constant
 database `f.radixdb` matching `k`, in the format `+klen,dlen:key->data`.
 
+Say `f.radixdb` has the following:
+
+    +4,1:roma->1
+    +7,1:romanus->2
+
+Then, the following are true:
+
+    $ ./radixdbmatch f.radixdb romae
+    +4,1:roma->1
+    $ ./radixdbmatch f.radixdb romanuseos
+    +7,1:romanus->2
+
 
 The radixdbdump program
 -----------------------
