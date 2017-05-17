@@ -1,8 +1,8 @@
 radixdb
 =======
 
-RadixDB is a key-value static database that provides fast lookups and "longest
-matching" operation.
+RadixDB is a key-value static (read-only) database that provides fast lookups
+and "longest matching" operation.
 
 
 Overview
