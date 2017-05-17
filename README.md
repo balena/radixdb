@@ -1,6 +1,13 @@
 radixdb
 =======
 
+RadixDB is a key-value static database that provides fast lookups and "longest
+matching" operation.
+
+
+Overview
+--------
+
 This library provides a C99 implementation of the PATRICIA Trie for NUL
 terminated strings.  Each node store a bit position and two children.  The
 position is the next bit location in which two members differ.  For a given set
@@ -25,6 +32,7 @@ It provides the following:
 This implementation does not support deletion, as it was conceived for usage in
 large read-only databases.
 
+
 Build
 -----
 
@@ -32,6 +40,7 @@ Build
 
 This will generate six binary files: `radixdbmk`, `radixdbget`, `radixdbmatch`,
 `radixdbdump`, `radixdbstats` and `radixdb2dot`.
+
 
 The radixdbmk program
 ---------------------
